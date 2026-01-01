@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#FF8A3D">
-<!-- build: daydayup-deploy 2026-08-26T23:36:00+08:00 -->
+<!-- build: daydayup-deploy 2026-08-29T19:21:00+08:00 -->
 <title>天天向上 · 小学生学习平台</title>
 <style>
 :root {
@@ -943,6 +943,51 @@ function saveDictationHistory(){
   if(arr.length>50) arr.length=50;
   save(LS.dictationHistory, arr);
 }
+function findGradeIdByName(name){
+  const opt = GRADE_OPTIONS.find(x=>x[1]===name);
+  return opt ? opt[0] : null;
+}
+function canRebuildHistoryQueue(h){
+  if(!h || !h.grade || !h.items || !h.items.length) return false;
+  const gradeId = findGradeIdByName(h.grade);
+  if(!gradeId || !CHINESE[gradeId] || !CHINESE[gradeId].units) return false;
+  const data = CHINESE[gradeId];
+  const itemSet = new Set(h.items);
+  return data.units.some(unit=>
+    unit.lessons.some(l=>itemSet.has(l.name)) ||
+    unit.poems.some(p=>itemSet.has(p.name))
+  );
+}
+function rebuildHistoryQueue(h){
+  if(!h) return [];
+  if(h.queue && h.queue.length) return JSON.parse(JSON.stringify(h.queue));
+  const gradeId = findGradeIdByName(h.grade);
+  if(!gradeId || !CHINESE[gradeId]) return [];
+  const oldGrade = currentGrade;
+  const savedTypes = {...dictationTypes};
+  currentGrade = gradeId;
+  dictationTypes = { hanzi:true, words:true, poem:true };
+  dictationSelections = { units:[], lessons:[], poems:[], hanzi:[], words:[], poemFull:[] };
+  const data = CHINESE[gradeId];
+  const itemSet = new Set(h.items);
+  data.units.forEach((unit, ui)=>{
+    unit.lessons.forEach((lesson, li)=>{
+      if(itemSet.has(lesson.name)){
+        getLessonAllKeys(`${ui}-${li}`).forEach(k=> dictationSelections[k.field].push(k.key));
+      }
+    });
+    unit.poems.forEach((poem, pi)=>{
+      if(itemSet.has(poem.name)){
+        getPoemAllKeys(`${ui}-${pi}`).forEach(k=> dictationSelections[k.field].push(k.key));
+      }
+    });
+  });
+  buildDictationQueue();
+  const queue = JSON.parse(JSON.stringify(dictationQueue));
+  dictationTypes = savedTypes;
+  currentGrade = oldGrade;
+  return queue;
+}
 function renderDictationHistory(){
   const box = document.getElementById('dictationHistory');
   const arr = load(LS.dictationHistory, []);
@@ -955,7 +1000,7 @@ function renderDictationHistory(){
         <div class="meta">${h.grade} · 听写：${h.items.join('、')} · 共 ${h.count} 项</div>
       </div>
       <div class="history-actions">
-        ${h.queue && h.queue.length ? `<button class="btn btn-sm btn-green" onclick="replayDictationHistory(${i})">听写</button>` : ''}
+        ${(h.queue && h.queue.length) || canRebuildHistoryQueue(h) ? `<button class="btn btn-sm btn-green" onclick="replayDictationHistory(${i})">听写</button>` : ''}
         <button class="fav-btn ${h.fav?'fav':''}" onclick="toggleDictationFav(${i})">${h.fav?'♥':'♡'}</button>
         <button class="del" onclick="delDictationHistory(${i})">删除</button>
       </div>
@@ -965,8 +1010,16 @@ function renderDictationHistory(){
 function replayDictationHistory(i){
   const arr = load(LS.dictationHistory, []);
   const h = arr[i];
-  if(!h || !h.queue || h.queue.length===0){ alert('该记录无法再次听写'); return; }
-  dictationQueue = JSON.parse(JSON.stringify(h.queue));
+  if(!h){ alert('该记录无法再次听写'); return; }
+  let queue = h.queue;
+  if(!queue || queue.length===0){
+    if(!canRebuildHistoryQueue(h)){ alert('该记录无法再次听写'); return; }
+    queue = rebuildHistoryQueue(h);
+    if(!queue || queue.length===0){ alert('该记录无法再次听写'); return; }
+    arr[i].queue = JSON.parse(JSON.stringify(queue));
+    save(LS.dictationHistory, arr);
+  }
+  dictationQueue = JSON.parse(JSON.stringify(queue));
   dictationIndex = 0;
   dictationPaused = false;
   dictationPlaying = false;
