@@ -232,7 +232,10 @@ select,input[type=text],input[type=number]{width:100%;padding:12px;border:2px so
   <!-- 听写模式 -->
   <div class="page" id="page-dictation">
     <div class="card">
-      <div class="card-title" id="dictationTitle">听写中</div>
+      <div class="card-title" style="justify-content:space-between;align-items:center;">
+        <span id="dictationTitle">听写中</span>
+        <button class="btn btn-sm btn-outline" onclick="openDictationSettings()">⚙ 读词设置</button>
+      </div>
       <div class="dictation-screen">
         <div class="dictation-hint" id="dictationSub">请根据拼音写出汉字</div>
         <div class="dictation-py" id="dictationPy">—</div>
@@ -243,14 +246,6 @@ select,input[type=text],input[type=number]{width:100%;padding:12px;border:2px so
         <button class="btn" style="flex:1;" onclick="addDictationToWrong()">➕ 加入错题本</button>
       </div>
       <div class="dictation-controls">
-        <div class="control-row">
-          <button class="control-btn" onclick="dictationAutoToggle()">
-            <span class="icon" id="autoIcon">▶</span><span>自动切换</span>
-          </button>
-          <button class="control-btn" onclick="openDictationSettings()">
-            <span class="icon">⚙</span><span>读词设置</span>
-          </button>
-        </div>
         <div class="control-row">
           <button class="control-btn" onclick="dictationPrev()">
             <span class="icon">⏮</span><span>上一个</span>
@@ -447,7 +442,7 @@ let printExpanded = [];
 let printTypes = { hanzi:true, words:true, poem:false };
 let dictationQueue = [];
 let dictationIndex = 0;
-let dictationAuto = false;
+let dictationPaused = false;
 let dictationTimer = null;
 let dictationPlaying = false;
 let dictationConfig = load(LS.dictationConfig, { repeat: 2, interval: 3000 });
@@ -948,11 +943,12 @@ function startDictation(){
   if(dictationQueue.length===0){ alert('请先选择听写内容'); return; }
   saveDictationHistory();
   dictationIndex = 0;
-  dictationAuto = false;
+  dictationPaused = false;
   dictationPlaying = false;
   clearTimeout(dictationTimer);
   switchPage('dictation');
   renderDictationItem();
+  dictationSpeakCurrent();
 }
 function renderDictationItem(){
   const item = dictationQueue[dictationIndex];
@@ -963,14 +959,14 @@ function renderDictationItem(){
   document.getElementById('dictationSub').textContent = item.type==='poem' ? '古诗全文' : '请根据拼音写出汉字';
 }
 function dictationPlayPause(){
-  if(dictationPlaying){ dictationStop(); } else { dictationSpeakCurrent(); }
+  if(dictationPlaying){ dictationStop(); dictationPaused = true; }
+  else { dictationPaused = false; dictationSpeakCurrent(); }
 }
 function dictationStop(){
   dictationPlaying = false;
   speechSynthesis.cancel();
   clearTimeout(dictationTimer);
   document.getElementById('playIcon').textContent = '▶';
-  document.getElementById('autoIcon').textContent = '▶';
 }
 function findExampleWords(w){
   const examples=[];
@@ -1007,7 +1003,7 @@ function dictationSpeakCurrent(){
     text = `${item.w}，${item.full}`;
   }
   speakQueue(text, dictationConfig.repeat, ()=>{
-    if(dictationAuto && dictationIndex < dictationQueue.length-1){
+    if(!dictationPaused && dictationIndex < dictationQueue.length-1){
       dictationTimer = setTimeout(()=>{ dictationNext(); }, dictationConfig.interval);
     } else {
       dictationPlaying = false;
@@ -1030,16 +1026,11 @@ function speakQueue(text, times, cb, rate=0.75){
   }, 200);
 }
 function dictationNext(){
-  if(dictationIndex < dictationQueue.length-1){ dictationIndex++; renderDictationItem(); dictationSpeakCurrent(); }
+  if(dictationIndex < dictationQueue.length-1){ dictationIndex++; renderDictationItem(); if(!dictationPaused) dictationSpeakCurrent(); }
   else { dictationStop(); alert('听写完成！'); }
 }
 function dictationPrev(){
-  if(dictationIndex>0){ dictationIndex--; renderDictationItem(); dictationSpeakCurrent(); }
-}
-function dictationAutoToggle(){
-  dictationAuto = !dictationAuto;
-  document.getElementById('autoIcon').textContent = dictationAuto ? '⏹' : '▶';
-  if(dictationAuto && !dictationPlaying) dictationSpeakCurrent();
+  if(dictationIndex>0){ dictationIndex--; renderDictationItem(); if(!dictationPaused) dictationSpeakCurrent(); }
 }
 function openDictationSettings(){
   openModal('读词设置', `
@@ -1435,7 +1426,16 @@ function renderWrong(){
     math: w => w.type === 'math',
     english: w => w.type === 'english'
   };
-  const arr = all.map((w,i)=>({w,i})).filter(({w})=> (filters[wrongTab]||filters.math)(w));
+  // 去重：按内容去重，保留最新的一条
+  const seen = new Set();
+  const arr = [];
+  all.forEach((w,i)=>{
+    if(!(filters[wrongTab]||filters.math)(w)) return;
+    const key = (w.type||'')+'|'+(w.w||'')+'|'+(w.py||'');
+    if(seen.has(key)) return;
+    seen.add(key);
+    arr.push({w,i});
+  });
   document.getElementById('wrongCount').textContent=arr.length;
   const box=document.getElementById('wrongList');
   const actions=document.getElementById('wrongActions');
@@ -1449,20 +1449,26 @@ function renderWrong(){
     return;
   }
   document.getElementById('wrongEmpty').style.display='none';
-  const hasChinese = wrongTab==='chinese' && arr.some(({w})=>isChineseWrong(w));
+  const hasChinese = wrongTab==='chinese';
   if(actions) actions.style.display = hasChinese ? 'flex' : 'none';
-  box.innerHTML=arr.map(({w,i})=>{
-    const isChinese = isChineseWrong(w);
-    return `<div class="list-item" style="align-items:flex-start;">
-      <div style="display:flex;align-items:center;gap:8px;flex:1;">
-        ${isChinese ? `<input type="checkbox" style="width:20px;height:20px;cursor:pointer;flex-shrink:0;" onchange="toggleWrongSelect(${i})">` : ''}
+  if(hasChinese){
+    box.innerHTML = `<div class="word-grid">${arr.map(({w,i})=>`
+      <div class="word-tag" style="position:relative;padding-top:22px;min-width:72px;text-align:center;cursor:pointer;" onclick="event.stopPropagation();">
+        <input type="checkbox" style="position:absolute;top:6px;left:6px;width:18px;height:18px;cursor:pointer;" onchange="event.stopPropagation();toggleWrongSelect(${i})">
+        <div class="py" style="font-size:12px;margin-bottom:2px;">${toneMark(w.py)||w.w}</div>
+        <div style="font-size:18px;font-weight:800;">${w.w}</div>
+      </div>
+    `).join('')}</div>`;
+  } else {
+    box.innerHTML=arr.map(({w,i})=>`
+      <div class="list-item" style="align-items:flex-start;">
         <div>
           <div class="name">${wrongDisplayText(w)}</div>
           <div class="meta">${wrongDisplayAns(w)}</div>
         </div>
       </div>
-    </div>`;
-  }).join('');
+    `).join('');
+  }
 }
 function switchWrongTab(tab){
   wrongTab = tab;
@@ -1513,11 +1519,12 @@ function dictateSelectedWrong(){
     return {type:'hanzi', w:w.w, py:w.py, e1:w.e1, e2:w.e2};
   });
   dictationIndex = 0;
-  dictationAuto = false;
+  dictationPaused = false;
   dictationPlaying = false;
   clearTimeout(dictationTimer);
   switchPage('dictation');
   renderDictationItem();
+  dictationSpeakCurrent();
 }
 function printSelectedWrong(){
   const items = getSelectedChineseWrong();
