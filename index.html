@@ -1027,6 +1027,22 @@ function addWrong(q){
   if(arr.length>200) arr.length=200;
   save(LS.wrong,arr);
 }
+function isChineseWrong(w){
+  if(w.type && w.type.startsWith('chinese')) return true;
+  // 兼容旧数据：没有 type 但 text 包含听写/古诗的也当作语文错题
+  if(!w.type && w.text && (w.text.includes('听写') || w.text.includes('古诗'))) return true;
+  return false;
+}
+function parseOldChineseWrong(w){
+  // 旧数据格式如 {text:'听写生字：jìng', ans:'静'}
+  const text = w.text || '';
+  const pyMatch = text.match(/[:：]([a-zāáǎàōóǒòēéěèīíǐìūúǔùǖǘǚǜü]+)/i);
+  const py = pyMatch ? pyMatch[1] : '';
+  const word = w.w || w.ans || '';
+  if(text.includes('古诗')) return {type:'poem', w:word, py:'', full:w.full||''};
+  if(text.includes('词语')) return {type:'word', w:word, py:py};
+  return {type:'hanzi', w:word, py:py, e1:w.e1||'', e2:w.e2||''};
+}
 function renderWrong(){
   wrongSelections.clear();
   const arr=load(LS.wrong,[]);
@@ -1035,10 +1051,10 @@ function renderWrong(){
   const actions=document.getElementById('wrongActions');
   if(arr.length===0){ box.innerHTML=''; document.getElementById('wrongEmpty').style.display='block'; if(actions) actions.style.display='none'; return; }
   document.getElementById('wrongEmpty').style.display='none';
-  const hasChinese = arr.some(w=>w.type && w.type.startsWith('chinese'));
+  const hasChinese = arr.some(w=>isChineseWrong(w));
   if(actions) actions.style.display = hasChinese ? 'flex' : 'none';
   box.innerHTML=arr.map((w,i)=>{
-    const isChinese = w.type && w.type.startsWith('chinese');
+    const isChinese = isChineseWrong(w);
     return `<div class="list-item" style="align-items:flex-start;">
       <div style="display:flex;align-items:center;gap:8px;flex:1;">
         ${isChinese ? `<input type="checkbox" style="width:20px;height:20px;cursor:pointer;flex-shrink:0;" onchange="toggleWrongSelect(${i})">` : ''}
@@ -1056,6 +1072,8 @@ function wrongDisplayText(w){
   if(w.type==='chinese-hanzi') return `听写生字：${w.py || w.w}`;
   if(w.type==='chinese-word') return `听写词语：${w.py || w.w}`;
   if(w.type==='chinese-poem') return `古诗：${w.w}`;
+  // 兼容旧数据
+  if(w.text && (w.text.includes('听写') || w.text.includes('古诗'))) return w.text;
   return w.text || w.w || '错题';
 }
 function wrongDisplayAns(w){
@@ -1063,6 +1081,7 @@ function wrongDisplayAns(w){
   if(w.type==='chinese-hanzi') return `${w.w} · ${w.e1||''} · ${w.e2||''}`;
   if(w.type==='chinese-word') return `${w.w}`;
   if(w.type==='chinese-poem') return `${w.full || ''}`;
+  if(w.text && (w.text.includes('听写') || w.text.includes('古诗'))) return `答案：${w.ans}`;
   return `答案：${w.ans}`;
 }
 function delWrong(i){ const arr=load(LS.wrong,[]); arr.splice(i,1); save(LS.wrong,arr); renderWrong(); }
@@ -1071,12 +1090,14 @@ function toggleWrongSelect(i){
 }
 function getSelectedChineseWrong(){
   const arr = load(LS.wrong, []);
-  return arr.filter((w,i)=>wrongSelections.has(i) && w.type && w.type.startsWith('chinese'));
+  return arr.filter((w,i)=>wrongSelections.has(i) && isChineseWrong(w));
 }
 function dictateSelectedWrong(){
   const items = getSelectedChineseWrong();
   if(items.length===0){ alert('请先选择生字或词语'); return; }
   dictationQueue = items.map(w=>{
+    const parsed = (!w.type || !w.type.startsWith('chinese')) ? parseOldChineseWrong(w) : null;
+    if(parsed) return parsed;
     if(w.type==='chinese-poem') return {type:'poem', w:w.w, py:'', full:w.full};
     if(w.type==='chinese-word') return {type:'word', w:w.w, py:w.py};
     return {type:'hanzi', w:w.w, py:w.py, e1:w.e1, e2:w.e2};
@@ -1092,6 +1113,8 @@ function printSelectedWrong(){
   const items = getSelectedChineseWrong();
   if(items.length===0){ alert('请先选择生字或词语'); return; }
   const queueItems = items.map(w=>{
+    const parsed = (!w.type || !w.type.startsWith('chinese')) ? parseOldChineseWrong(w) : null;
+    if(parsed) return parsed;
     if(w.type==='chinese-poem') return {type:'poem', w:w.w, py:'', full:w.full};
     if(w.type==='chinese-word') return {type:'word', w:w.w, py:w.py};
     return {type:'hanzi', w:w.w, py:w.py, e1:w.e1, e2:w.e2};
