@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#FF8A3D">
-<!-- build: daydayup-deploy 2026-08-30T10:30:00+08:00 -->
+<!-- build: daydayup-deploy 2026-08-30T15:00:36+08:00 -->
 <title>天天向上 · 小学生学习平台</title>
 <style>
 :root {
@@ -70,6 +70,10 @@ select,input[type=text],input[type=number]{width:100%;padding:12px;border:2px so
 .task-name{font-size:15px;font-weight:700;flex:1;min-width:0;}
 .task-btn{border:none;border-radius:999px;padding:8px 14px;font-size:13px;font-weight:800;cursor:pointer;background:var(--bg);color:var(--text-light);flex-shrink:0;white-space:nowrap;}
 .task-btn.done{background:var(--green);color:#fff;}
+.task-all-done{margin-top:8px;padding:14px 0;border-top:2px dashed var(--border);border-bottom:none;}
+.task-all-done.done .task-name{color:var(--green);}
+.task-all-status{font-size:13px;font-weight:800;color:var(--text-light);background:var(--bg);border-radius:999px;padding:6px 12px;}
+.task-all-done.done .task-all-status{background:var(--green);color:#fff;}
 .island-overlay{position:fixed;inset:0;z-index:200;background:linear-gradient(180deg,#aee3ff 0%,#e8f7ff 70%);overflow:hidden;}
 .island-canvas{position:absolute;inset:0;}
 .island-topbar{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:calc(12px + env(safe-area-inset-top)) 16px 12px;z-index:210;}
@@ -381,15 +385,19 @@ select,input[type=text],input[type=number]{width:100%;padding:12px;border:2px so
   <!-- 打卡 -->
   <div class="page" id="page-checkin">
     <div class="card">
+      <div class="card-title">📋 每日任务清单 <span class="badge" id="taskStarTotal">0 ⭐</span></div>
+      <div id="taskList"></div>
+      <div class="task-row task-all-done" id="taskAllDoneRow">
+        <span class="task-name">🎉 今天已完成全部打卡</span>
+        <span class="task-all-status" id="taskAllDoneStatus">+3⭐ 待解锁</span>
+      </div>
+    </div>
+    <div class="card">
       <div class="card-title">✅ 学习打卡</div>
       <div class="streak" id="streakText"></div>
       <button class="btn btn-green btn-block" onclick="doCheckin()">今天打卡 ✓</button>
       <div class="hint">连续打卡天数越多，学习越棒！</div>
       <div class="checkin-grid" id="checkinGrid"></div>
-    </div>
-    <div class="card">
-      <div class="card-title">📋 每日任务清单 <span class="badge" id="taskStarTotal">0 ⭐</span></div>
-      <div id="taskList"></div>
     </div>
   </div>
 
@@ -2534,12 +2542,16 @@ const TASKS = [
 ];
 function loadTasks(){
   const t = todayStr();
-  const data = load(LS.checkinTasks, {date:'', done:{}});
+  const data = load(LS.checkinTasks, {date:'', done:{}, awarded:{}, allDoneAwarded:false});
   if(data.date !== t){
     data.date = t;
     data.done = {};
+    data.awarded = {};
+    data.allDoneAwarded = false;
     save(LS.checkinTasks, data);
   }
+  if(data.awarded === undefined) data.awarded = {};
+  if(data.allDoneAwarded === undefined) data.allDoneAwarded = false;
   return data;
 }
 function renderCheckinTasks(){
@@ -2553,14 +2565,48 @@ function renderCheckinTasks(){
   `).join('');
   const total = document.getElementById('taskStarTotal');
   if(total) total.textContent = (parkPoints||0) + ' ⭐';
+  updateAllDoneReward(data);
 }
 function toggleTask(key){
   const data = loadTasks();
   const wasDone = !!data.done[key];
   data.done[key] = !wasDone;
+  if(data.done[key]){
+    if(!data.awarded[key]){
+      parkAddPoints(3);
+      data.awarded[key] = true;
+    }
+  } else {
+    if(data.awarded[key]){
+      parkAddPoints(-3);
+      data.awarded[key] = false;
+    }
+  }
   save(LS.checkinTasks, data);
-  if(!wasDone) parkAddPoints(3); // 完成 +3 星；取消不扣星
   renderCheckinTasks();
+}
+function updateAllDoneReward(data){
+  const allDone = TASKS.every(ts => data.done[ts.key]);
+  const row = document.getElementById('taskAllDoneRow');
+  const status = document.getElementById('taskAllDoneStatus');
+  if(!row || !status) return;
+  if(allDone){
+    if(!data.allDoneAwarded){
+      parkAddPoints(3);
+      data.allDoneAwarded = true;
+      save(LS.checkinTasks, data);
+    }
+    row.classList.add('done');
+    status.textContent = '+3⭐ 已获得';
+  } else {
+    if(data.allDoneAwarded){
+      parkAddPoints(-3);
+      data.allDoneAwarded = false;
+      save(LS.checkinTasks, data);
+    }
+    row.classList.remove('done');
+    status.textContent = '+3⭐ 待解锁';
+  }
 }
 
 // ============ 积分乐园 ============
