@@ -436,6 +436,7 @@ let dictationSelections = { units:[], lessons:[], poems:[], hanzi:[], words:[], 
 let dictationExpanded = [];
 let wrongSelections = new Set();
 let wrongBookReturn = false; // 从错题本进入听写/打印后，返回时应回到错题本并保留选择
+let lastWrongPage = 'wrong'; // 'wrong' | 'dictation' | 'print'
 let dictationTypes = { hanzi:true, words:true, poem:false };
 let wrongTab = 'chinese';
 let printSelections = { units:[], lessons:[], poems:[], hanzi:[], words:[], poemFull:[] };
@@ -465,8 +466,13 @@ function switchPage(name){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.getElementById('page-'+name).classList.add('active');
   document.querySelectorAll('.bottom-nav .nav-item').forEach(n=>n.classList.remove('active'));
-  // 高亮对应的底部导航项：dictation/dictation-select/print-select 也属于语文
-  const navName = (name==='dictation' || name==='dictation-select' || name==='print-select') ? 'chinese' : name;
+  // 高亮对应的底部导航项：从错题本进入的听写/打印应高亮错题本，否则属于语文
+  let navName = name;
+  if((name==='dictation' && lastWrongPage==='dictation') || (name==='print' && lastWrongPage==='print')){
+    navName = 'wrong';
+  } else if(name==='dictation' || name==='dictation-select' || name==='print-select'){
+    navName = 'chinese';
+  }
   document.querySelector(`.bottom-nav .nav-item[data-page="${navName}"]`)?.classList.add('active');
   if(name==='wrong') renderWrong();
   if(name==='checkin') renderCheckin();
@@ -484,7 +490,11 @@ document.querySelectorAll('.bottom-nav .nav-item').forEach(n=>{
     if(target==='chinese' && (lastChineseSubPage==='dictation' || lastChineseSubPage==='dictation-select')){
       target = lastChineseSubPage;
     }
-    // 从底部导航进入错题本属于全新访问，清空之前的选择
+    // 点击错题本时，如果之前在"错题本→听写/打印"子页面，恢复到该子页面
+    if(target==='wrong' && (lastWrongPage==='dictation' || lastWrongPage==='print')){
+      target = lastWrongPage;
+    }
+    // 从底部导航全新进入错题本列表时，清空之前的选择
     if(target==='wrong') wrongSelections.clear();
     switchPage(target);
   };
@@ -661,12 +671,13 @@ function speak(text, lang, rate=0.9){
 // ============ 听写选择 ============
 function openDictationSelect(){
   wrongBookReturn = false;
+  lastWrongPage = 'wrong';
   dictationSelections = { units:[], lessons:[], poems:[], hanzi:[], words:[], poemFull:[] };
   dictationExpanded = [];
   switchPage('dictation-select');
 }
 function backToChinese(){
-  if(wrongBookReturn){ switchPage('wrong'); wrongBookReturn=false; return; }
+  if(wrongBookReturn){ switchPage('wrong'); wrongBookReturn=false; lastWrongPage='wrong'; return; }
   switchPage('chinese');
 }
 function renderDictationTree(){
@@ -947,6 +958,7 @@ function delDictationHistory(i){
 // ============ 听写模式 ============
 function startDictation(){
   wrongBookReturn = false;
+  lastWrongPage = 'wrong';
   buildDictationQueue();
   if(dictationQueue.length===0){ alert('请先选择听写内容'); return; }
   saveDictationHistory();
@@ -1052,7 +1064,7 @@ function openDictationSettings(){
 }
 function dictationBack(){
   dictationStop();
-  if(wrongBookReturn){ switchPage('wrong'); wrongBookReturn=false; return; }
+  if(wrongBookReturn){ switchPage('wrong'); wrongBookReturn=false; lastWrongPage='wrong'; return; }
   switchPage('dictation-select');
 }
 function addDictationToWrong(){
@@ -1089,6 +1101,7 @@ function openPrint(customItems){
   }
   // 打开打印选择界面
   wrongBookReturn = false;
+  lastWrongPage = 'wrong';
   printSelections = { units:[], lessons:[], poems:[], hanzi:[], words:[], poemFull:[] };
   printExpanded = [];
   printTypes = { hanzi:true, words:true, poem:false };
@@ -1524,6 +1537,7 @@ function dictateSelectedWrong(){
   const items = getSelectedChineseWrong();
   if(items.length===0){ alert('请先选择生字或词语'); return; }
   wrongBookReturn = true;
+  lastWrongPage = 'dictation';
   dictationQueue = items.map(w=>{
     const parsed = (!w.type || !w.type.startsWith('chinese')) ? parseOldChineseWrong(w) : null;
     if(parsed) return parsed;
@@ -1543,6 +1557,7 @@ function printSelectedWrong(){
   const items = getSelectedChineseWrong();
   if(items.length===0){ alert('请先选择生字或词语'); return; }
   wrongBookReturn = true;
+  lastWrongPage = 'print';
   const queueItems = items.map(w=>{
     const parsed = (!w.type || !w.type.startsWith('chinese')) ? parseOldChineseWrong(w) : null;
     if(parsed) return parsed;
