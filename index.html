@@ -7,71 +7,126 @@
 <meta name="theme-color" content="#FF8A3D">
 <title>天天向上 · 小学生学习平台</title>
 <style>
-  :root {
-    --bg:#FFF7EF; --card:#FFFFFF; --border:#FFE3C8;
-    --text:#3A2E25; --text-light:#9A8472;
-    --primary:#FF8A3D; --primary-dark:#F2701C; --primary-light:#FFD9B8;
-    --blue:#3FA7E0; --green:#46B26E; --purple:#9C6ADE; --red:#E8604C;
-    --shadow:0 3px 12px rgba(255,138,61,0.16);
-  }
-  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column;min-height:100vh;}
-  .top-bar{background:linear-gradient(135deg,var(--primary-dark),var(--primary));color:#fff;padding:16px 18px;position:sticky;top:0;z-index:50;box-shadow:0 2px 10px rgba(242,112,28,0.3);}
-  .top-bar h1{font-size:20px;font-weight:800;letter-spacing:1px;}
-  .top-bar .sub{font-size:12px;opacity:0.9;margin-top:2px;}
-  .main{flex:1;padding:14px 14px 90px;max-width:560px;margin:0 auto;width:100%;}
-  .card{background:var(--card);border-radius:16px;padding:16px;margin-bottom:14px;box-shadow:var(--shadow);border:1px solid var(--border);}
-  .card-title{font-size:16px;font-weight:800;display:flex;align-items:center;gap:8px;margin-bottom:12px;}
-  .btn{border:none;border-radius:12px;padding:12px 14px;font-size:15px;font-weight:700;cursor:pointer;color:#fff;background:var(--primary);transition:transform .08s;}
-  .btn:active{transform:scale(0.96);}
-  .btn-blue{background:var(--blue);}
-  .btn-green{background:var(--green);}
-  .btn-purple{background:var(--purple);}
-  .btn-red{background:var(--red);}
-  .btn-outline{background:#fff;color:var(--primary-dark);border:2px solid var(--primary-light);}
-  .btn-block{width:100%;}
-  .row{display:flex;gap:10px;flex-wrap:wrap;}
-  .chip{padding:8px 14px;border-radius:999px;border:2px solid var(--border);background:#fff;font-size:14px;font-weight:700;color:var(--text-light);cursor:pointer;}
-  .chip.active{background:var(--primary);color:#fff;border-color:var(--primary);}
-  .seg{display:flex;gap:8px;margin-bottom:12px;}
-  .seg .chip{flex:1;text-align:center;}
-  label{font-size:13px;color:var(--text-light);font-weight:700;display:block;margin-bottom:6px;}
-  select,input[type=text],input[type=number]{width:100%;padding:12px;border:2px solid var(--border);border-radius:12px;font-size:15px;background:#fff;color:var(--text);}
-  /* 口算练习 */
-  .quiz-num{font-size:42px;font-weight:800;text-align:center;margin:10px 0;letter-spacing:2px;}
-  .quiz-ans{font-size:24px;text-align:center;padding:14px;margin:10px 0;border:2px solid var(--border);border-radius:12px;background:var(--bg);}
-  .quiz-meta{display:flex;justify-content:space-between;font-size:14px;font-weight:700;color:var(--text-light);margin-bottom:6px;}
-  .result-big{font-size:30px;font-weight:800;text-align:center;margin:8px 0;}
-  .feedback{text-align:center;font-size:18px;font-weight:800;min-height:24px;}
-  .ok{color:var(--green);} .no{color:var(--red);}
-  /* 语文/英语卡片 */
-  .study-card{background:linear-gradient(135deg,#FFF3E6,#FFE9D6);border-radius:16px;padding:24px;text-align:center;border:2px solid var(--border);min-height:160px;display:flex;flex-direction:column;justify-content:center;align-items:center;cursor:pointer;}
-  .study-card .big{font-size:40px;font-weight:800;}
-  .study-card .small{font-size:20px;color:var(--text-light);margin-top:8px;}
-  .study-card .pinyin{font-size:16px;color:var(--purple);margin-top:6px;}
-  .progress-dots{display:flex;gap:6px;justify-content:center;margin-top:10px;}
-  .dot{width:8px;height:8px;border-radius:50%;background:var(--border);}
-  .dot.done{background:var(--green);}
-  .list-item{display:flex;justify-content:space-between;align-items:center;padding:12px;border-bottom:1px solid var(--border);}
-  .list-item:last-child{border-bottom:none;}
-  .list-item .name{font-size:16px;font-weight:700;}
-  .list-item .meta{font-size:12px;color:var(--text-light);}
-  .del{background:var(--red);color:#fff;border:none;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;}
-  .empty-tip{text-align:center;color:var(--text-light);font-size:14px;padding:20px;}
-  /* 打卡 */
-  .checkin-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:6px;}
-  .day-cell{aspect-ratio:1;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;background:var(--bg);border:1px solid var(--border);}
-  .day-cell.done{background:var(--green);color:#fff;}
-  .day-cell.today{outline:2px solid var(--primary);}
-  .streak{font-size:15px;font-weight:800;color:var(--primary-dark);text-align:center;margin:8px 0;}
-  .bottom-nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--border);display:flex;z-index:60;padding:6px 4px;padding-bottom:calc(6px + env(safe-area-inset-bottom));}
-  .bottom-nav .nav-item{flex:1;text-align:center;padding:6px 2px;color:var(--text-light);font-size:11px;font-weight:700;cursor:pointer;}
-  .bottom-nav .nav-item .ni{font-size:22px;display:block;margin-bottom:2px;}
-  .bottom-nav .nav-item.active{color:var(--primary);}
-  .page{display:none;}
-  .page.active{display:block;}
-  .badge{display:inline-block;background:var(--primary-light);color:var(--primary-dark);border-radius:8px;padding:2px 8px;font-size:11px;font-weight:800;margin-left:6px;}
-  .hint{font-size:12px;color:var(--text-light);margin-top:6px;}
+:root {
+  --bg:#FFF7EF; --card:#FFFFFF; --border:#FFE3C8;
+  --text:#3A2E25; --text-light:#9A8472;
+  --primary:#FF8A3D; --primary-dark:#F2701C; --primary-light:#FFD9B8;
+  --blue:#3FA7E0; --green:#46B26E; --purple:#9C6ADE; --red:#E8604C;
+  --shadow:0 3px 12px rgba(255,138,61,0.16);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column;min-height:100vh;}
+.top-bar{background:linear-gradient(135deg,var(--primary-dark),var(--primary));color:#fff;padding:16px 18px;position:sticky;top:0;z-index:50;box-shadow:0 2px 10px rgba(242,112,28,0.3);}
+.top-bar h1{font-size:20px;font-weight:800;letter-spacing:1px;}
+.top-bar .sub{font-size:12px;opacity:0.9;margin-top:2px;}
+.main{flex:1;padding:14px 14px 90px;max-width:560px;margin:0 auto;width:100%;}
+.card{background:var(--card);border-radius:16px;padding:16px;margin-bottom:14px;box-shadow:var(--shadow);border:1px solid var(--border);}
+.card-title{font-size:16px;font-weight:800;display:flex;align-items:center;gap:8px;margin-bottom:12px;}
+.btn{border:none;border-radius:12px;padding:12px 14px;font-size:15px;font-weight:700;cursor:pointer;color:#fff;background:var(--primary);transition:transform .08s;}
+.btn:active{transform:scale(0.96);}
+.btn-blue{background:var(--blue);}
+.btn-green{background:var(--green);}
+.btn-purple{background:var(--purple);}
+.btn-red{background:var(--red);}
+.btn-gray{background:#9A8472;}
+.btn-outline{background:#fff;color:var(--primary-dark);border:2px solid var(--primary-light);}
+.btn-block{width:100%;}
+.btn-sm{padding:6px 10px;font-size:12px;border-radius:8px;}
+.row{display:flex;gap:10px;flex-wrap:wrap;}
+.chip{padding:8px 14px;border-radius:999px;border:2px solid var(--border);background:#fff;font-size:14px;font-weight:700;color:var(--text-light);cursor:pointer;}
+.chip.active{background:var(--primary);color:#fff;border-color:var(--primary);}
+.seg{display:flex;gap:8px;margin-bottom:12px;}
+.seg .chip{flex:1;text-align:center;}
+label{font-size:13px;color:var(--text-light);font-weight:700;display:block;margin-bottom:6px;}
+select,input[type=text],input[type=number]{width:100%;padding:12px;border:2px solid var(--border);border-radius:12px;font-size:15px;background:#fff;color:var(--text);}
+.quiz-num{font-size:42px;font-weight:800;text-align:center;margin:10px 0;letter-spacing:2px;}
+.quiz-ans{font-size:24px;text-align:center;padding:14px;margin:10px 0;border:2px solid var(--border);border-radius:12px;background:var(--bg);}
+.quiz-meta{display:flex;justify-content:space-between;font-size:14px;font-weight:700;color:var(--text-light);margin-bottom:6px;}
+.result-big{font-size:30px;font-weight:800;text-align:center;margin:8px 0;}
+.feedback{text-align:center;font-size:18px;font-weight:800;min-height:24px;}
+.ok{color:var(--green);} .no{color:var(--red);}
+.study-card{background:linear-gradient(135deg,#FFF3E6,#FFE9D6);border-radius:16px;padding:24px;text-align:center;border:2px solid var(--border);min-height:160px;display:flex;flex-direction:column;justify-content:center;align-items:center;cursor:pointer;}
+.study-card .big{font-size:40px;font-weight:800;}
+.study-card .small{font-size:20px;color:var(--text-light);margin-top:8px;}
+.study-card .pinyin{font-size:16px;color:var(--purple);margin-top:6px;}
+.progress-dots{display:flex;gap:6px;justify-content:center;margin-top:10px;}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--border);}
+.dot.done{background:var(--green);}
+.list-item{display:flex;justify-content:space-between;align-items:center;padding:12px;border-bottom:1px solid var(--border);}
+.list-item:last-child{border-bottom:none;}
+.list-item .name{font-size:16px;font-weight:700;}
+.list-item .meta{font-size:12px;color:var(--text-light);}
+.del{background:var(--red);color:#fff;border:none;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;}
+.empty-tip{text-align:center;color:var(--text-light);font-size:14px;padding:20px;}
+.checkin-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:6px;}
+.day-cell{aspect-ratio:1;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;background:var(--bg);border:1px solid var(--border);}
+.day-cell.done{background:var(--green);color:#fff;}
+.day-cell.today{outline:2px solid var(--primary);}
+.streak{font-size:15px;font-weight:800;color:var(--primary-dark);text-align:center;margin:8px 0;}
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--border);display:flex;z-index:60;padding:6px 4px;padding-bottom:calc(6px + env(safe-area-inset-bottom));}
+.bottom-nav .nav-item{flex:1;text-align:center;padding:6px 2px;color:var(--text-light);font-size:11px;font-weight:700;cursor:pointer;}
+.bottom-nav .nav-item .ni{font-size:22px;display:block;margin-bottom:2px;}
+.bottom-nav .nav-item.active{color:var(--primary);}
+.page{display:none;}
+.page.active{display:block;}
+.badge{display:inline-block;background:var(--primary-light);color:var(--primary-dark);border-radius:8px;padding:2px 8px;font-size:11px;font-weight:800;margin-left:6px;}
+.hint{font-size:12px;color:var(--text-light);margin-top:6px;}
+.grade-select{flex:1;min-width:120px;}
+.unit-block{background:var(--bg);border-radius:14px;margin-bottom:10px;overflow:hidden;border:1px solid var(--border);}
+.unit-header{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:#fff;cursor:pointer;}
+.unit-header .u-name{font-size:15px;font-weight:800;}
+.unit-body{padding:10px 14px 14px;display:none;}
+.unit-body.open{display:block;}
+.lesson-row{background:#fff;border-radius:12px;padding:12px;margin-bottom:8px;border:1px solid var(--border);}
+.lesson-title{display:flex;justify-content:space-between;align-items:center;cursor:pointer;}
+.lesson-title .l-name{font-size:15px;font-weight:700;}
+.lesson-body{padding-top:10px;display:none;}
+.lesson-body.open{display:block;}
+.section-title{font-size:13px;font-weight:700;color:var(--text-light);margin:10px 0 6px;}
+.word-grid{display:flex;flex-wrap:wrap;gap:8px;}
+.word-tag{background:#fff;border:1px solid var(--border);border-radius:10px;padding:8px 12px;font-size:14px;font-weight:700;cursor:pointer;position:relative;}
+.word-tag .py{font-size:11px;color:var(--text-light);font-weight:400;display:block;text-align:center;}
+.word-tag.reading{background:var(--primary-light);}
+.action-row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+.edit-bar{display:flex;gap:6px;align-items:center;}
+.mini-btn{background:var(--primary-light);color:var(--primary-dark);border:none;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700;cursor:pointer;}
+.mini-btn.red{background:#ffe5e5;color:var(--red);}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:100;display:none;align-items:center;justify-content:center;padding:14px;}
+.modal.open{display:flex;}
+.modal-card{background:#fff;border-radius:16px;width:100%;max-width:420px;max-height:85vh;overflow:auto;padding:16px;}
+.modal-title{font-size:17px;font-weight:800;margin-bottom:12px;}
+.form-group{margin-bottom:12px;}
+.check-row{display:flex;align-items:center;gap:8px;padding:8px 0;}
+.check-row input{width:20px;height:20px;}
+.check-row .c-name{flex:1;font-size:15px;font-weight:700;}
+.check-row .c-meta{font-size:12px;color:var(--text-light);}
+.count-bar{text-align:center;font-size:14px;font-weight:700;color:var(--primary-dark);padding:10px;background:var(--primary-light);border-radius:12px;margin:12px 0;}
+.dictation-screen{background:#fff;border-radius:20px;padding:30px 20px;text-align:center;min-height:220px;display:flex;flex-direction:column;justify-content:center;box-shadow:var(--shadow);border:1px solid var(--border);}
+.dictation-py{font-size:64px;font-weight:800;color:var(--text);margin:10px 0;}
+.dictation-hint{font-size:14px;color:var(--text-light);margin-top:10px;}
+.dictation-controls{display:flex;justify-content:space-around;align-items:center;margin-top:20px;}
+.control-btn{background:none;border:none;font-size:13px;font-weight:700;color:var(--text-light);display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;}
+.control-btn .icon{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;background:var(--bg);border:1px solid var(--border);}
+.control-btn .icon.big{width:72px;height:72px;font-size:32px;background:var(--primary);color:#fff;border:none;}
+.setting-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border);}
+.setting-row:last-child{border-bottom:none;}
+.option-group{display:flex;gap:8px;flex-wrap:wrap;}
+.option-btn{padding:8px 14px;border-radius:999px;border:2px solid var(--border);background:#fff;font-size:14px;font-weight:700;cursor:pointer;}
+.option-btn.active{background:var(--primary);color:#fff;border-color:var(--primary);}
+.print-sheet{background:#fff;padding:20px;}
+.print-title{font-size:22px;font-weight:800;text-align:center;margin-bottom:16px;}
+.print-section{margin-bottom:16px;}
+.print-section h4{font-size:15px;margin-bottom:8px;color:var(--primary-dark);}
+.print-grid{display:flex;flex-wrap:wrap;gap:10px;}
+.print-cell{border:1px solid #ddd;border-radius:8px;padding:10px 14px;font-size:16px;font-weight:700;min-width:80px;text-align:center;}
+.print-cell .pinyin{font-size:12px;color:#666;font-weight:400;display:block;}
+@media print{
+  .top-bar,.bottom-nav,.btn,.no-print{display:none!important;}
+  .main{padding:0;max-width:none;}
+  .page{display:none!important;}
+  #page-print{display:block!important;}
+  body{background:#fff;}
+}
 </style>
 </head>
 <body>
@@ -121,22 +176,78 @@
   <!-- 语文 -->
   <div class="page" id="page-chinese">
     <div class="card">
-      <div class="card-title">📖 语文 <span class="badge">点卡片可朗读</span></div>
-      <div class="seg" id="chineseSeg">
-        <span class="chip active" data-set="hanzi">生字</span>
-        <span class="chip" data-set="poem">古诗</span>
+      <div class="card-title" style="flex-wrap:wrap;">
+        <span>📖 语文</span>
+        <select id="cnGradeSelect" class="grade-select" onchange="changeGrade(this.value)"></select>
       </div>
-      <div class="study-card" id="chineseCard" onclick="speakCurrent()">
-        <div class="big" id="cnBig">字</div>
-        <div class="pinyin" id="cnPinyin"></div>
-        <div class="small" id="cnSmall"></div>
+      <div class="row" style="margin-bottom:12px;">
+        <button class="btn btn-green" style="flex:1;" onclick="openDictationSelect()">🎧 去听写</button>
+        <button class="btn btn-blue" style="flex:1;" onclick="openPrint()">🖨️ 去打印</button>
+        <button class="btn btn-purple" style="flex:1;" id="cnEditBtn" onclick="toggleEditMode()">✏️ 编辑</button>
       </div>
-      <div class="row" style="margin-top:10px;">
-        <button class="btn btn-outline" style="flex:1;" onclick="prevChinese()">上一个</button>
-        <button class="btn btn-outline" style="flex:1;" onclick="nextChinese()">下一个</button>
-      </div>
-      <div class="progress-dots" id="cnDots"></div>
+      <div id="cnUnitList"></div>
+      <div class="hint">点击课文/古诗可展开生字词语；点击字词可朗读。</div>
     </div>
+  </div>
+
+  <!-- 听写选择 -->
+  <div class="page" id="page-dictation-select">
+    <div class="card">
+      <div class="card-title">🎧 选择听写范围</div>
+      <div id="dictationTree"></div>
+      <div class="section-title">听写内容</div>
+      <div class="row" style="margin-bottom:12px;">
+        <span class="chip active" id="chkHanzi" onclick="toggleType('hanzi')">生字</span>
+        <span class="chip active" id="chkWords" onclick="toggleType('words')">词语</span>
+        <span class="chip" id="chkPoem" onclick="toggleType('poem')">古诗全文</span>
+      </div>
+      <div class="count-bar" id="dictationCount">已选 0 项</div>
+      <div class="row">
+        <button class="btn btn-outline" style="flex:1;" onclick="backToChinese()">返回</button>
+        <button class="btn btn-green" style="flex:1;" onclick="startDictation()">开始听写</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 听写模式 -->
+  <div class="page" id="page-dictation">
+    <div class="card">
+      <div class="card-title" id="dictationTitle">听写中</div>
+      <div class="dictation-screen">
+        <div class="dictation-hint" id="dictationSub">请根据拼音写出汉字</div>
+        <div class="dictation-py" id="dictationPy">—</div>
+        <div class="dictation-hint" id="dictationProgress">1 / 1</div>
+      </div>
+      <div class="dictation-controls">
+        <button class="control-btn" onclick="dictationAutoToggle()">
+          <span class="icon" id="autoIcon">▶</span><span>自动切换</span>
+        </button>
+        <button class="control-btn" onclick="dictationPrev()">
+          <span class="icon">⏮</span><span>上一个</span>
+        </button>
+        <button class="control-btn" onclick="dictationPlayPause()">
+          <span class="icon big" id="playIcon">▶</span>
+        </button>
+        <button class="control-btn" onclick="dictationNext()">
+          <span class="icon">⏭</span><span>下一个</span>
+        </button>
+        <button class="control-btn" onclick="openDictationSettings()">
+          <span class="icon">⚙</span><span>读词设置</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 打印页 -->
+  <div class="page" id="page-print">
+    <div class="card no-print">
+      <div class="card-title">🖨️ 打印字词表</div>
+      <div class="row">
+        <button class="btn btn-outline" style="flex:1;" onclick="backToChinese()">返回</button>
+        <button class="btn btn-blue" style="flex:1;" onclick="window.print()">打印 / 存PDF</button>
+      </div>
+    </div>
+    <div class="print-sheet" id="printSheet"></div>
   </div>
 
   <!-- 英语 -->
@@ -180,7 +291,7 @@
   </div>
 </div>
 
-<div class="bottom-nav">
+<div class="bottom-nav" id="bottomNav">
   <div class="nav-item active" data-page="math"><span class="ni">🧮</span>口算</div>
   <div class="nav-item" data-page="chinese"><span class="ni">📖</span>语文</div>
   <div class="nav-item" data-page="english"><span class="ni">🔤</span>英语</div>
@@ -188,70 +299,446 @@
   <div class="nav-item" data-page="checkin"><span class="ni">✅</span>打卡</div>
 </div>
 
+<!-- 通用弹窗 -->
+<div class="modal" id="commonModal">
+  <div class="modal-card">
+    <div class="modal-title" id="modalTitle">标题</div>
+    <div id="modalBody"></div>
+    <div class="row" style="margin-top:14px;">
+      <button class="btn btn-outline" style="flex:1;" onclick="closeModal()">取消</button>
+      <button class="btn btn-green" style="flex:1;" id="modalOk" onclick="">确定</button>
+    </div>
+  </div>
+</div>
 <script>
-// ============ 数据 ============
+// ============ 数据与工具 ============
 const LS = {
   wrong: 'ddup_wrong_v1',
-  checkin: 'ddup_checkin_v1'
+  checkin: 'ddup_checkin_v1',
+  chinese: 'ddup_chinese_v1',
+  dictationConfig: 'ddup_dictation_cfg_v1'
 };
-function load(k, def){ try { return JSON.parse(localStorage.getItem(k)) ?? def; } catch(e){ return def; } }
+function load(k, def){ try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch(e){ return def; } }
 function save(k, v){ localStorage.setItem(k, JSON.stringify(v)); }
 
-// 语文数据
-const HANZI = [
-  {w:'晨',py:'chén',m:'早晨、清晨',e:'清早，日出前后'},
-  {w:'绒',py:'róng',m:'绒毛、羽绒',e:'柔软细小的毛'},
-  {w:'汉',py:'hàn',m:'汉字、汉族',e:'中国主体民族'},
-  {w:'艳',py:'yàn',m:'鲜艳、艳丽',e:'色彩鲜明好看'},
-  {w:'服',py:'fú',m:'衣服、校服',e:'穿在身上的衣物'},
-  {w:'装',py:'zhuāng',m:'服装、假装',e:'衣裳；装饰'},
-  {w:'静',py:'jìng',m:'安静、平静',e:'没有声响'},
-  {w:'停',py:'tíng',m:'停止、停车',e:'不再进行'},
-  {w:'孔',py:'kǒng',m:'孔隙、毛孔',e:'小洞'},
-  {w:'雀',py:'què',m:'孔雀、麻雀',e:'一种小鸟'},
-  {w:'掌',py:'zhǎng',m:'手掌、掌声',e:'手心；拍手'},
-  {w:'寒',py:'hán',m:'寒冷、寒冬',e:'冷'},
-  {w:'径',py:'jìng',m:'小径、路径',e:'小路'},
-  {w:'霜',py:'shuāng',m:'霜叶、冰霜',e:'水汽凝成的白色冰晶'},
-  {w:'赠',py:'zèng',m:'赠送、赠言',e:'把东西送给别人'},
-  {w:'盖',py:'gài',m:'盖子、掩盖',e:'遮挡、覆盖'},
-  {w:'菊',py:'jú',m:'菊花、秋菊',e:'秋天开放的花'},
-  {w:'残',py:'cán',m:'残阳、残缺',e:'不完整；剩余'},
-  {w:'君',py:'jūn',m:'君子、诸君',e:'对人的尊称'},
-  {w:'橙',py:'chéng',m:'橙子、橙色',e:'一种水果；颜色'}
-];
-const POEMS = [
-  {w:'所见',a:'袁枚',m:'牧童骑黄牛，歌声振林樾。意欲捕鸣蝉，忽然闭口立。'},
-  {w:'山行',a:'杜牧',m:'远上寒山石径斜，白云生处有人家。停车坐爱枫林晚，霜叶红于二月花。'},
-  {w:'赠刘景文',a:'苏轼',m:'荷尽已无擎雨盖，菊残犹有傲霜枝。一年好景君须记，最是橙黄橘绿时。'},
-  {w:'夜书所见',a:'叶绍翁',m:'萧萧梧叶送寒声，江上秋风动客情。知有儿童挑促织，夜深篱落一灯明。'},
-  {w:'望天门山',a:'李白',m:'天门中断楚江开，碧水东流至此回。两岸青山相对出，孤帆一片日边来。'},
-  {w:'饮湖上初晴后雨',a:'苏轼',m:'水光潋滟晴方好，山色空蒙雨亦奇。欲把西湖比西子，淡妆浓抹总相宜。'},
-  {w:'望洞庭',a:'刘禹锡',m:'湖光秋月两相和，潭面无风镜未磨。遥望洞庭山水翠，白银盘里一青螺。'},
-  {w:'早发白帝城',a:'李白',m:'朝辞白帝彩云间，千里江陵一日还。两岸猿声啼不住，轻舟已过万重山。'}
-];
-// 英语数据（小学基础词）
-const WORDS = [
-  {en:'apple',zh:'苹果'},{en:'banana',zh:'香蕉'},{en:'cat',zh:'猫'},{en:'dog',zh:'狗'},
-  {en:'book',zh:'书'},{en:'pen',zh:'钢笔'},{en:'red',zh:'红色'},{en:'blue',zh:'蓝色'},
-  {en:'sun',zh:'太阳'},{en:'moon',zh:'月亮'},{en:'tree',zh:'树'},{en:'fish',zh:'鱼'},
-  {en:'teacher',zh:'老师'},{en:'student',zh:'学生'},{en:'school',zh:'学校'},{en:'water',zh:'水'}
-];
+const DEFAULT_CHINESE = {"3-1": {"name": "三年级上册", "units": [{"name": "第一单元", "lessons": [{"name": "大青树下的小学", "hanzi": [{"w": "晨", "py": "chén", "e1": "早晨的晨", "e2": "清晨的晨"}, {"w": "绒", "py": "róng", "e1": "绒毛的绒", "e2": "羽绒的绒"}, {"w": "汉", "py": "hàn", "e1": "汉字的汉", "e2": "汉族的汉"}, {"w": "艳", "py": "yàn", "e1": "鲜艳的艳", "e2": "艳丽的艳"}, {"w": "装", "py": "zhuāng", "e1": "服装的装", "e2": "装修的装"}, {"w": "静", "py": "jìng", "e1": "安静的静", "e2": "平静的静"}, {"w": "停", "py": "tíng", "e1": "停止的停", "e2": "停车的停"}, {"w": "孔", "py": "kǒng", "e1": "孔隙的孔", "e2": "毛孔的孔"}, {"w": "雀", "py": "què", "e1": "孔雀的雀", "e2": "麻雀的雀"}], "words": [{"w": "早晨", "py": "zǎo chén"}, {"w": "鲜艳", "py": "xiān yàn"}, {"w": "服装", "py": "fú zhuāng"}, {"w": "安静", "py": "ān jìng"}, {"w": "孔雀", "py": "kǒng què"}]}, {"name": "花的学校", "hanzi": [{"w": "荒", "py": "huāng", "e1": "荒野的荒", "e2": "荒地的荒"}, {"w": "笛", "py": "dí", "e1": "口笛的笛", "e2": "笛子的笛"}, {"w": "舞", "py": "wǔ", "e1": "跳舞的舞", "e2": "舞蹈的舞"}, {"w": "狂", "py": "kuáng", "e1": "狂欢的狂", "e2": "疯狂的狂"}, {"w": "罚", "py": "fá", "e1": "罚站的罚", "e2": "处罚的罚"}, {"w": "互", "py": "hù", "e1": "互相的互", "e2": "互助的互"}, {"w": "所", "py": "suǒ", "e1": "所以的所", "e2": "所有的所"}, {"w": "够", "py": "gòu", "e1": "够多的够", "e2": "足够的够"}], "words": [{"w": "荒野", "py": "huāng yě"}, {"w": "口笛", "py": "kǒu dí"}, {"w": "狂欢", "py": "kuáng huān"}, {"w": "罚站", "py": "fá zhàn"}]}, {"name": "不懂就要问", "hanzi": [{"w": "背", "py": "bèi", "e1": "背诵的背", "e2": "背书的背"}, {"w": "诵", "py": "sòng", "e1": "朗诵的诵", "e2": "背诵的诵"}, {"w": "例", "py": "lì", "e1": "例子的例", "e2": "举例的例"}, {"w": "圈", "py": "quān", "e1": "圆圈的圈", "e2": "一圈的圈"}, {"w": "段", "py": "duàn", "e1": "段落的段", "e2": "一段的段"}, {"w": "练", "py": "liàn", "e1": "练习的练", "e2": "训练的练"}, {"w": "糊", "py": "hú", "e1": "糊涂的糊", "e2": "糊墙的糊"}, {"w": "涂", "py": "tú", "e1": "涂色的涂", "e2": "涂料的涂"}], "words": [{"w": "背诵", "py": "bèi sòng"}, {"w": "例子", "py": "lì zi"}, {"w": "段落", "py": "duàn luò"}, {"w": "练习", "py": "liàn xí"}]}, {"name": "语文园地一", "hanzi": [{"w": "臂", "py": "bì", "e1": "手臂的臂", "e2": "臂膀的臂"}, {"w": "假", "py": "jià", "e1": "假期的假", "e2": "放假的假"}], "words": [{"w": "手臂", "py": "shǒu bì"}, {"w": "放假", "py": "fàng jià"}]}], "poems": [{"name": "所见", "author": "袁枚", "full": "牧童骑黄牛，歌声振林樾。意欲捕鸣蝉，忽然闭口立。", "hanzi": [], "words": []}]}, {"name": "第二单元", "lessons": [{"name": "古诗三首", "hanzi": [{"w": "寒", "py": "hán", "e1": "寒冷的寒", "e2": "寒冬的寒"}, {"w": "径", "py": "jìng", "e1": "小径的径", "e2": "路径的径"}, {"w": "斜", "py": "xié", "e1": "斜线的斜", "e2": "倾斜的斜"}, {"w": "霜", "py": "shuāng", "e1": "霜叶的霜", "e2": "冰霜的霜"}, {"w": "赠", "py": "zèng", "e1": "赠送的赠", "e2": "赠言的赠"}, {"w": "刘", "py": "liú", "e1": "姓刘的刘", "e2": "刘海的刘"}, {"w": "盖", "py": "gài", "e1": "盖子的盖", "e2": "掩盖的盖"}, {"w": "菊", "py": "jú", "e1": "菊花的菊", "e2": "秋菊的菊"}, {"w": "残", "py": "cán", "e1": "残阳的残", "e2": "残缺的残"}, {"w": "君", "py": "jūn", "e1": "君子的君", "e2": "诸君的君"}, {"w": "橙", "py": "chéng", "e1": "橙子的橙", "e2": "橙色的橙"}, {"w": "送", "py": "sòng", "e1": "送别的送", "e2": "送礼的送"}], "words": [{"w": "寒冷", "py": "hán lěng"}, {"w": "小径", "py": "xiǎo jìng"}, {"w": "霜叶", "py": "shuāng yè"}, {"w": "赠送", "py": "zèng sòng"}, {"w": "菊花", "py": "jú huā"}]}, {"name": "铺满金色巴掌的水泥道", "hanzi": [{"w": "铺", "py": "pū", "e1": "铺开的铺", "e2": "铺设的铺"}, {"w": "泥", "py": "ní", "e1": "水泥的泥", "e2": "泥土的泥"}, {"w": "晶", "py": "jīng", "e1": "亮晶晶的晶", "e2": "水晶的晶"}, {"w": "紧", "py": "jǐn", "e1": "紧张的紧", "e2": "紧紧的紧"}, {"w": "院", "py": "yuàn", "e1": "院子的院", "e2": "校园的院"}, {"w": "印", "py": "yìn", "e1": "脚印的印", "e2": "印章的印"}, {"w": "排", "py": "pái", "e1": "排列的排", "e2": "排队的排"}, {"w": "列", "py": "liè", "e1": "列车的列", "e2": "陈列的列"}, {"w": "规", "py": "guī", "e1": "规则的规", "e2": "规矩的规"}, {"w": "则", "py": "zé", "e1": "规则的则", "e2": "原则的则"}], "words": [{"w": "水泥", "py": "shuǐ ní"}, {"w": "亮晶晶", "py": "liàng jīng jīng"}, {"w": "排列", "py": "pái liè"}, {"w": "规则", "py": "guī zé"}]}, {"name": "秋天的雨", "hanzi": [{"w": "盒", "py": "hé", "e1": "盒子的盒", "e2": "铅笔盒的盒"}, {"w": "颜", "py": "yán", "e1": "颜色的颜", "e2": "容颜的颜"}, {"w": "料", "py": "liào", "e1": "颜料的料", "e2": "材料的料"}, {"w": "票", "py": "piào", "e1": "邮票的票", "e2": "门票的票"}, {"w": "飘", "py": "piāo", "e1": "飘扬的飘", "e2": "飘动的飘"}, {"w": "争", "py": "zhēng", "e1": "争气的争", "e2": "争取的争"}, {"w": "仙", "py": "xiān", "e1": "仙子的仙", "e2": "神仙的仙"}, {"w": "淡", "py": "dàn", "e1": "淡绿的淡", "e2": "淡水的淡"}, {"w": "闻", "py": "wén", "e1": "闻到的闻", "e2": "新闻的闻"}, {"w": "梨", "py": "lí", "e1": "梨子的梨", "e2": "鸭梨的梨"}], "words": [{"w": "颜料", "py": "yán liào"}, {"w": "邮票", "py": "yóu piào"}, {"w": "仙子", "py": "xiān zǐ"}, {"w": "淡黄", "py": "dàn huáng"}]}], "poems": [{"name": "山行", "author": "杜牧", "full": "远上寒山石径斜，白云生处有人家。停车坐爱枫林晚，霜叶红于二月花。", "hanzi": [], "words": []}, {"name": "赠刘景文", "author": "苏轼", "full": "荷尽已无擎雨盖，菊残犹有傲霜枝。一年好景君须记，最是橙黄橘绿时。", "hanzi": [], "words": []}, {"name": "夜书所见", "author": "叶绍翁", "full": "萧萧梧叶送寒声，江上秋风动客情。知有儿童挑促织，夜深篱落一灯明。", "hanzi": [], "words": []}]}, {"name": "第三单元", "lessons": [{"name": "总也倒不了的老屋", "hanzi": [{"w": "洞", "py": "dòng", "e1": "洞口的洞", "e2": "山洞的洞"}, {"w": "准", "py": "zhǔn", "e1": "准备的准", "e2": "准确的准"}, {"w": "备", "py": "bèi", "e1": "准备的备", "e2": "具备的备"}, {"w": "暴", "py": "bào", "e1": "暴雨的暴", "e2": "暴力的暴"}, {"w": "墙", "py": "qiáng", "e1": "墙壁的墙", "e2": "高墙的墙"}, {"w": "壁", "py": "bì", "e1": "墙壁的壁", "e2": "壁虎的壁"}, {"w": "饿", "py": "è", "e1": "饥饿的饿", "e2": "饿肚子的饿"}, {"w": "蜘", "py": "zhī", "e1": "蜘蛛的蜘", "e2": "蜘丝的蜘"}, {"w": "蛛", "py": "zhū", "e1": "蜘蛛的蛛", "e2": "蛛网的蛛"}], "words": [{"w": "准备", "py": "zhǔn bèi"}, {"w": "暴雨", "py": "bào yǔ"}, {"w": "墙壁", "py": "qiáng bì"}, {"w": "蜘蛛", "py": "zhī zhū"}]}], "poems": []}]}};
+const GRADE_OPTIONS = [["1-1", "一年级上册"], ["1-2", "一年级下册"], ["2-1", "二年级上册"], ["2-2", "二年级下册"], ["3-1", "三年级上册"], ["3-2", "三年级下册"], ["4-1", "四年级上册"], ["4-2", "四年级下册"], ["5-1", "五年级上册"], ["5-2", "五年级下册"], ["6-1", "六年级上册"], ["6-2", "六年级下册"]];
 
-// ============ 导航 ============
-const PAGE_TITLES = { math:'口算', chinese:'语文', english:'英语', wrong:'错题', checkin:'打卡' };
+let CHINESE = load(LS.chinese, null);
+if(!CHINESE){ CHINESE = JSON.parse(JSON.stringify(DEFAULT_CHINESE)); save(LS.chinese, CHINESE); }
+let currentGrade = '3-1';
+let editMode = false;
+let dictationSelections = { units:[], lessons:[], poems:[] };
+let dictationTypes = { hanzi:true, words:true, poem:false };
+let dictationQueue = [];
+let dictationIndex = 0;
+let dictationAuto = false;
+let dictationTimer = null;
+let dictationPlaying = false;
+let dictationConfig = load(LS.dictationConfig, { repeat: 2, interval: 3000 });
+
+// ============ 通用弹窗 ============
+let modalCallback = null;
+function openModal(title, bodyHtml, okText, callback){
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalBody').innerHTML = bodyHtml;
+  document.getElementById('modalOk').textContent = okText || '确定';
+  modalCallback = callback;
+  document.getElementById('commonModal').classList.add('open');
+}
+function closeModal(){ document.getElementById('commonModal').classList.remove('open'); }
+document.getElementById('modalOk').onclick = function(){ if(modalCallback) modalCallback(); };
+
 function switchPage(name){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.getElementById('page-'+name).classList.add('active');
   document.querySelectorAll('.bottom-nav .nav-item').forEach(n=>n.classList.remove('active'));
-  document.querySelector(`.bottom-nav .nav-item[data-page="${name}"]`).classList.add('active');
+  document.querySelector(`.bottom-nav .nav-item[data-page="${name}"]`)?.classList.add('active');
   if(name==='wrong') renderWrong();
   if(name==='checkin') renderCheckin();
+  if(name==='chinese') renderChinesePage();
+  if(name==='dictation-select') renderDictationTree();
   window.scrollTo(0,0);
 }
-document.querySelectorAll('.bottom-nav .nav-item').forEach(n=>{
-  n.onclick=()=>switchPage(n.dataset.page);
-});
+document.querySelectorAll('.bottom-nav .nav-item').forEach(n=>{ n.onclick=()=>switchPage(n.dataset.page); });
+
+// ============ 语文核心 ============
+function saveChinese(){ save(LS.chinese, CHINESE); }
+function getGradeName(id){ return GRADE_OPTIONS.find(x=>x[0]===id)?.[1] || id; }
+function initGradeSelect(){
+  const sel = document.getElementById('cnGradeSelect');
+  sel.innerHTML = GRADE_OPTIONS.map(([id,name])=>`<option value="${id}">${name}</option>`).join('');
+  sel.value = currentGrade;
+}
+function changeGrade(id){ currentGrade = id; renderChinesePage(); }
+
+function renderChinesePage(){
+  initGradeSelect();
+  const data = CHINESE[currentGrade];
+  const box = document.getElementById('cnUnitList');
+  if(!data || !data.units || data.units.length===0){
+    box.innerHTML = '<div class="empty-tip">暂无内容，点击编辑添加单元和课文。</div>';
+    return;
+  }
+  box.innerHTML = data.units.map((unit, ui)=>`
+    <div class="unit-block" data-ui="${ui}">
+      <div class="unit-header" onclick="toggleUnit(${ui})">
+        <span class="u-name">${unit.name}</span>
+        <span>${editMode?editUnitButtons(ui):'<span style="font-size:12px;color:var(--text-light)">展开 ▼</span>'}</span>
+      </div>
+      <div class="unit-body ${ui===0?'open':''}" id="unit-body-${ui}">
+        ${(unit.lessons||[]).map((lesson, li)=>renderLessonCard(ui, li, lesson, 'lesson')).join('')}
+        ${(unit.poems||[]).map((poem, pi)=>renderLessonCard(ui, pi, poem, 'poem')).join('')}
+        ${editMode?`<div class="action-row"><button class="btn btn-sm" onclick="addLesson(${ui})">+ 课文</button><button class="btn btn-sm btn-purple" onclick="addPoem(${ui})">+ 古诗</button></div>`:''}
+      </div>
+    </div>
+  `).join('') + (editMode?'<div style="margin-top:10px"><button class="btn btn-block btn-green" onclick="addUnit()">+ 添加单元</button></div>':'');
+}
+function toggleUnit(ui){
+  const el = document.getElementById('unit-body-'+ui);
+  if(el) el.classList.toggle('open');
+}
+function toggleLesson(ui, idx, type){
+  const el = document.getElementById(`lesson-body-${type}-${ui}-${idx}`);
+  if(el) el.classList.toggle('open');
+}
+function renderLessonCard(ui, idx, item, type){
+  const isPoem = type==='poem';
+  const id = `lesson-body-${type}-${ui}-${idx}`;
+  const actions = editMode ? `<span class="edit-bar"><button class="mini-btn" onclick="editName(event,${ui},'${type}',${idx})">改名</button><button class="mini-btn red" onclick="delItem(event,${ui},'${type}',${idx})">删除</button></span>` : '';
+  return `
+    <div class="lesson-row ${editMode?'edit-mode':''}">
+      <div class="lesson-title" onclick="toggleLesson(${ui},${idx},'${type}')">
+        <span class="l-name">${isPoem?'古诗：':''}${item.name}</span>
+        <span>${actions}<span style="font-size:12px;color:var(--text-light)">展开 ▼</span></span>
+      </div>
+      <div class="lesson-body" id="${id}">
+        ${renderSection('生字', item.hanzi||[], ui, idx, type, 'hanzi')}
+        ${renderSection('词语', item.words||[], ui, idx, type, 'words')}
+        ${isPoem ? renderPoemFull(item) : ''}
+      </div>
+    </div>
+  `;
+}
+function renderSection(title, list, ui, idx, type, field){
+  return `
+    <div class="section-title">${title}</div>
+    <div class="word-grid">
+      ${list.map((it, i)=>`
+        <span class="word-tag" onclick="speakWord('${it.w.replace(/'/g,"\\'")}')">
+          ${it.w}
+          ${it.py?`<span class="py">${it.py}</span>`:''}
+          ${editMode?`<button class="mini-btn red" style="position:absolute;top:-8px;right:-8px;" onclick="delWord(event,${ui},${idx},'${type}','${field}',${i})">×</button>`:''}
+        </span>
+      `).join('')}
+      ${editMode?`<button class="mini-btn" onclick="addWord(${ui},${idx},'${type}','${field}')">+ 添加</button>`:''}
+    </div>
+  `;
+}
+function renderPoemFull(item){
+  return `
+    <div class="section-title">全文</div>
+    <div style="font-size:15px;line-height:1.8;padding:10px;background:#fff;border-radius:10px;border:1px solid var(--border);" onclick="speakWord('${(item.full||'').replace(/'/g,"\\'")}')">
+      ${(item.full||'').replace(/\\n/g,'<br>')}
+    </div>
+  `;
+}
+
+function toggleEditMode(){
+  editMode = !editMode;
+  document.getElementById('cnEditBtn').textContent = editMode ? '完成' : '编辑';
+  renderChinesePage();
+}
+
+// ============ 编辑操作 ============
+function editUnitButtons(ui){
+  return `<span class="edit-bar"><button class="mini-btn" onclick="editName(event,${ui},'unit',0)">改名</button><button class="mini-btn red" onclick="delItem(event,${ui},'unit',0)">删除</button></span>`;
+}
+function addUnit(){
+  const data = CHINESE[currentGrade];
+  if(!data.units) data.units = [];
+  data.units.push({ name: '新单元', lessons:[], poems:[] });
+  saveChinese(); renderChinesePage();
+}
+function addLesson(ui){
+  CHINESE[currentGrade].units[ui].lessons.push({ name:'新课文', hanzi:[], words:[] });
+  saveChinese(); renderChinesePage();
+}
+function addPoem(ui){
+  CHINESE[currentGrade].units[ui].poems.push({ name:'新古诗', author:'', full:'', hanzi:[], words:[] });
+  saveChinese(); renderChinesePage();
+}
+function editName(ev, ui, type, idx){
+  ev.stopPropagation();
+  const item = type==='unit' ? CHINESE[currentGrade].units[ui] : (type==='lesson'?CHINESE[currentGrade].units[ui].lessons[idx]:CHINESE[currentGrade].units[ui].poems[idx]);
+  const label = type==='unit'?'单元名称':(type==='lesson'?'课文名称':'古诗名称');
+  const extra = type==='poem' ? `<div class="form-group"><label>作者</label><input type="text" id="editAuthor" value="${item.author||''}"></div>` : '';
+  openModal(`修改${label}`, `
+    <div class="form-group"><label>${label}</label><input type="text" id="editName" value="${item.name}"></div>
+    ${extra}
+  `, '保存', ()=>{
+    item.name = document.getElementById('editName').value.trim() || item.name;
+    if(type==='poem') item.author = document.getElementById('editAuthor').value.trim();
+    saveChinese(); renderChinesePage(); closeModal();
+  });
+}
+function delItem(ev, ui, type, idx){
+  ev.stopPropagation();
+  if(!confirm('确定删除吗？')) return;
+  const unit = CHINESE[currentGrade].units[ui];
+  if(type==='unit') CHINESE[currentGrade].units.splice(ui,1);
+  else if(type==='lesson') unit.lessons.splice(idx,1);
+  else unit.poems.splice(idx,1);
+  saveChinese(); renderChinesePage();
+}
+function addWord(ui, idx, type, field){
+  const item = type==='lesson' ? CHINESE[currentGrade].units[ui].lessons[idx] : CHINESE[currentGrade].units[ui].poems[idx];
+  const isWord = field==='words';
+  openModal(`添加${isWord?'词语':'生字'}`, `
+    <div class="form-group"><label>${isWord?'词语':'汉字'}</label><input type="text" id="wWord"></div>
+    <div class="form-group"><label>拼音</label><input type="text" id="wPy"></div>
+    ${isWord?'':`<div class="form-group"><label>例词1（如：山坡的坡）</label><input type="text" id="wE1"></div><div class="form-group"><label>例词2（如：下坡的坡）</label><input type="text" id="wE2"></div>`}
+  `, '添加', ()=>{
+    const w = document.getElementById('wWord').value.trim();
+    const py = document.getElementById('wPy').value.trim();
+    if(!w) return;
+    const arr = item[field] || (item[field]=[]);
+    if(isWord) arr.push({w,py});
+    else arr.push({w,py,e1:document.getElementById('wE1').value.trim()||w,e2:document.getElementById('wE2').value.trim()||w});
+    saveChinese(); renderChinesePage(); closeModal();
+  });
+}
+function delWord(ev, ui, idx, type, field, i){
+  ev.stopPropagation();
+  const item = type==='lesson' ? CHINESE[currentGrade].units[ui].lessons[idx] : CHINESE[currentGrade].units[ui].poems[idx];
+  item[field].splice(i,1);
+  saveChinese(); renderChinesePage();
+}
+
+// ============ 朗读 ============
+function speakWord(text){
+  if(!('speechSynthesis' in window)) return;
+  try{ const u=new SpeechSynthesisUtterance(text); u.lang='zh-CN'; u.rate=0.9; speechSynthesis.cancel(); speechSynthesis.speak(u); }catch(e){}
+}
+function speakEnglish(){
+  const big = document.getElementById('enBig');
+  speak(big.dataset.val||big.textContent, 'en-US');
+}
+function speak(text, lang){
+  if(!('speechSynthesis' in window)) return;
+  try{ const u=new SpeechSynthesisUtterance(text); u.lang=lang; u.rate=0.9; speechSynthesis.cancel(); speechSynthesis.speak(u); }catch(e){}
+}
+
+// ============ 听写选择 ============
+function openDictationSelect(){
+  dictationSelections = { units:[], lessons:[], poems:[] };
+  switchPage('dictation-select');
+}
+function backToChinese(){ switchPage('chinese'); }
+function renderDictationTree(){
+  const data = CHINESE[currentGrade];
+  const box = document.getElementById('dictationTree');
+  if(!data || !data.units || !data.units.length){ box.innerHTML='<div class="empty-tip">没有可听写内容</div>'; return; }
+  box.innerHTML = data.units.map((unit, ui)=>{
+    const unitChecked = dictationSelections.units.includes(ui);
+    let html = `<div class="unit-block">
+      <div class="check-row" style="padding-left:14px;background:#fff;border-radius:12px;margin-bottom:6px;" onclick="toggleDictUnit(${ui})">
+        <input type="checkbox" ${unitChecked?'checked':''} onclick="event.stopPropagation();toggleDictUnit(${ui})">
+        <span class="c-name">${unit.name}</span>
+        <span class="c-meta">全选</span>
+      </div>`;
+    unit.lessons.forEach((lesson, li)=>{
+      const key = `${ui}-${li}`;
+      const checked = dictationSelections.lessons.includes(key);
+      html += `<div class="check-row" style="padding-left:34px;" onclick="toggleDictLesson('${key}')">
+        <input type="checkbox" ${checked?'checked':''} onclick="event.stopPropagation();toggleDictLesson('${key}')">
+        <span class="c-name">课文：${lesson.name}</span>
+      </div>`;
+    });
+    unit.poems.forEach((poem, pi)=>{
+      const key = `${ui}-${pi}`;
+      const checked = dictationSelections.poems.includes(key);
+      html += `<div class="check-row" style="padding-left:34px;" onclick="toggleDictPoem('${key}')">
+        <input type="checkbox" ${checked?'checked':''} onclick="event.stopPropagation();toggleDictPoem('${key}')">
+        <span class="c-name">古诗：${poem.name}</span>
+      </div>`;
+    });
+    return html + '</div>';
+  }).join('');
+  updateDictationCount();
+}
+function toggleDictUnit(ui){
+  const pos = dictationSelections.units.indexOf(ui);
+  if(pos>=0){
+    dictationSelections.units.splice(pos,1);
+    const unit = CHINESE[currentGrade].units[ui];
+    unit.lessons.forEach((_,li)=>{ const k=`${ui}-${li}`; const i=dictationSelections.lessons.indexOf(k); if(i>=0) dictationSelections.lessons.splice(i,1); });
+    unit.poems.forEach((_,pi)=>{ const k=`${ui}-${pi}`; const i=dictationSelections.poems.indexOf(k); if(i>=0) dictationSelections.poems.splice(i,1); });
+  } else {
+    dictationSelections.units.push(ui);
+    const unit = CHINESE[currentGrade].units[ui];
+    unit.lessons.forEach((_,li)=>{ const k=`${ui}-${li}`; if(!dictationSelections.lessons.includes(k)) dictationSelections.lessons.push(k); });
+    unit.poems.forEach((_,pi)=>{ const k=`${ui}-${pi}`; if(!dictationSelections.poems.includes(k)) dictationSelections.poems.push(k); });
+  }
+  renderDictationTree();
+}
+function toggleDictLesson(key){
+  const pos = dictationSelections.lessons.indexOf(key);
+  if(pos>=0) dictationSelections.lessons.splice(pos,1); else dictationSelections.lessons.push(key);
+  renderDictationTree();
+}
+function toggleDictPoem(key){
+  const pos = dictationSelections.poems.indexOf(key);
+  if(pos>=0) dictationSelections.poems.splice(pos,1); else dictationSelections.poems.push(key);
+  renderDictationTree();
+}
+function toggleType(type){
+  dictationTypes[type] = !dictationTypes[type];
+  const el = document.getElementById('chk'+type.charAt(0).toUpperCase()+type.slice(1));
+  el.classList.toggle('active', dictationTypes[type]);
+  updateDictationCount();
+}
+function updateDictationCount(){
+  buildDictationQueue();
+  document.getElementById('dictationCount').textContent = `已选 ${dictationQueue.length} 项`;
+}
+function buildDictationQueue(){
+  dictationQueue = [];
+  const data = CHINESE[currentGrade];
+  if(!data || !data.units) return;
+  data.units.forEach((unit, ui)=>{
+    const unitSelected = dictationSelections.units.includes(ui);
+    unit.lessons.forEach((lesson, li)=>{
+      const key = `${ui}-${li}`;
+      const selected = unitSelected || dictationSelections.lessons.includes(key);
+      if(!selected) return;
+      if(dictationTypes.hanzi) lesson.hanzi.forEach(h=>dictationQueue.push({type:'hanzi', ...h}));
+      if(dictationTypes.words) lesson.words.forEach(w=>dictationQueue.push({type:'word', ...w}));
+    });
+    unit.poems.forEach((poem, pi)=>{
+      const key = `${ui}-${pi}`;
+      const selected = unitSelected || dictationSelections.poems.includes(key);
+      if(!selected) return;
+      if(dictationTypes.hanzi) poem.hanzi.forEach(h=>dictationQueue.push({type:'hanzi', ...h}));
+      if(dictationTypes.words) poem.words.forEach(w=>dictationQueue.push({type:'word', ...w}));
+      if(dictationTypes.poem && poem.full) dictationQueue.push({type:'poem', w:poem.name, py:'', full:poem.full, author:poem.author});
+    });
+  });
+}
+
+// ============ 听写模式 ============
+function startDictation(){
+  buildDictationQueue();
+  if(dictationQueue.length===0){ alert('请先选择听写内容'); return; }
+  dictationIndex = 0;
+  dictationAuto = false;
+  dictationPlaying = false;
+  clearTimeout(dictationTimer);
+  switchPage('dictation');
+  renderDictationItem();
+}
+function renderDictationItem(){
+  const item = dictationQueue[dictationIndex];
+  document.getElementById('dictationTitle').textContent = `听写中（${dictationIndex+1}/${dictationQueue.length}）`;
+  document.getElementById('dictationProgress').textContent = `${dictationIndex+1} / ${dictationQueue.length}`;
+  if(!item){ document.getElementById('dictationPy').textContent = '完成'; return; }
+  document.getElementById('dictationPy').textContent = item.py || item.w;
+  document.getElementById('dictationSub').textContent = item.type==='poem' ? '古诗全文' : '请根据拼音写出汉字';
+}
+function dictationPlayPause(){
+  if(dictationPlaying){ dictationStop(); } else { dictationSpeakCurrent(); }
+}
+function dictationStop(){
+  dictationPlaying = false;
+  speechSynthesis.cancel();
+  clearTimeout(dictationTimer);
+  document.getElementById('playIcon').textContent = '▶';
+  document.getElementById('autoIcon').textContent = '▶';
+}
+function dictationSpeakCurrent(){
+  const item = dictationQueue[dictationIndex];
+  if(!item) return;
+  dictationPlaying = true;
+  document.getElementById('playIcon').textContent = '⏸';
+  let text;
+  if(item.type==='hanzi'){
+    text = `${item.w}，${item.e1}，${item.e2}`;
+  } else if(item.type==='word'){
+    text = item.w;
+  } else {
+    text = `${item.w}，${item.full}`;
+  }
+  speakQueue(text, dictationConfig.repeat, ()=>{
+    if(dictationAuto && dictationIndex < dictationQueue.length-1){
+      dictationTimer = setTimeout(()=>{ dictationNext(); }, dictationConfig.interval);
+    } else {
+      dictationPlaying = false;
+      document.getElementById('playIcon').textContent = '▶';
+    }
+  });
+}
+function speakQueue(text, times, cb){
+  if(times<=0){ cb(); return; }
+  speak(text, 'zh-CN');
+  let check = setInterval(()=>{
+    if(!speechSynthesis.speaking){
+      clearInterval(check);
+      if(times>1){
+        setTimeout(()=>speakQueue(text, times-1, cb), 500);
+      } else {
+        cb();
+      }
+    }
+  }, 200);
+}
+function dictationNext(){
+  if(dictationIndex < dictationQueue.length-1){ dictationIndex++; renderDictationItem(); dictationSpeakCurrent(); }
+  else { dictationStop(); alert('听写完成！'); }
+}
+function dictationPrev(){
+  if(dictationIndex>0){ dictationIndex--; renderDictationItem(); dictationSpeakCurrent(); }
+}
+function dictationAutoToggle(){
+  dictationAuto = !dictationAuto;
+  document.getElementById('autoIcon').textContent = dictationAuto ? '⏹' : '▶';
+  if(dictationAuto && !dictationPlaying) dictationSpeakCurrent();
+}
+function openDictationSettings(){
+  openModal('读词设置', `
+    <div class="setting-row"><span>读词次数</span><div class="option-group" id="repeatGroup"></div></div>
+    <div class="setting-row"><span>读词间隔</span><div class="option-group" id="intervalGroup"></div></div>
+  `, '确定', ()=>{ closeModal(); });
+  renderSettingOptions('repeatGroup', [1,2,3], dictationConfig.repeat, v=>{dictationConfig.repeat=v; save(LS.dictationConfig, dictationConfig);});
+  renderSettingOptions('intervalGroup', [1000,3000,5000,7000,9000], dictationConfig.interval, v=>{dictationConfig.interval=v; save(LS.dictationConfig, dictationConfig);});
+}
+function renderSettingOptions(id, values, current, cb){
+  const labels = {1000:'1秒',3000:'3秒',5000:'5秒',7000:'7秒',9000:'9秒'};
+  document.getElementById(id).innerHTML = values.map(v=>`<span class="option-btn ${v===current?'active':''}" onclick="setOption('${id}',${v},this)">${labels[v]||v}</span>`).join('');
+  window._settingCb = cb;
+}
+function setOption(id, v, el){
+  document.querySelectorAll('#'+id+' .option-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  window._settingCb(v);
+}
+
+// ============ 去打印 ============
+function openPrint(){
+  dictationSelections = { units:[], lessons:[], poems:[] };
+  CHINESE[currentGrade].units.forEach((unit, ui)=> dictationSelections.units.push(ui) );
+  dictationTypes = { hanzi:true, words:true, poem:true };
+  buildDictationQueue();
+  const hanzi = dictationQueue.filter(x=>x.type==='hanzi');
+  const words = dictationQueue.filter(x=>x.type==='word');
+  const poems = dictationQueue.filter(x=>x.type==='poem');
+  document.getElementById('printSheet').innerHTML = `
+    <div class="print-title">${getGradeName(currentGrade)} 字词表</div>
+    <div class="print-section"><h4>生字（${hanzi.length}个）</h4><div class="print-grid">${hanzi.map(h=>`<div class="print-cell"><span class="pinyin">${h.py}</span>${h.w}</div>`).join('')}</div></div>
+    <div class="print-section"><h4>词语（${words.length}个）</h4><div class="print-grid">${words.map(w=>`<div class="print-cell"><span class="pinyin">${w.py}</span>${w.w}</div>`).join('')}</div></div>
+    ${poems.length?`<div class="print-section"><h4>古诗（${poems.length}首）</h4>${poems.map(p=>`<p style="margin:8px 0;font-size:15px;"><b>${p.w}</b>（${p.author||'未知'}）<br>${p.full}</p>`).join('')}</div>`:''}
+  `;
+  switchPage('print');
+}
 
 // ============ 口算 ============
 let quizOp='mix', quizGrade=1;
@@ -264,11 +751,9 @@ document.querySelectorAll('#gradeSeg .chip').forEach(c=>c.onclick=()=>{
   document.querySelectorAll('#gradeSeg .chip').forEach(x=>x.classList.remove('active'));
   c.classList.add('active'); quizGrade=parseInt(c.dataset.grade);
 });
-
 function rnd(a,b){ return Math.floor(Math.random()*(b-a+1))+a; }
 function genQuestion(){
-  const g=quizGrade;
-  let op=quizOp;
+  const g=quizGrade; let op=quizOp;
   if(op==='mix') op=['add','sub','mul','div'][rnd(0,3)];
   let a,b,ans,text;
   if(op==='add'){ const max=10+g*20; a=rnd(1,max); b=rnd(1,max); ans=a+b; text=`${a} + ${b}`; }
@@ -312,12 +797,8 @@ function submitAnswer(){
   const ua=getAns();
   if(ua===null){ document.getElementById('quizFeedback').textContent='请输入数字答案'; return; }
   const fb=document.getElementById('quizFeedback');
-  if(ua===quizCurAns){
-    fb.textContent='✓ 答对啦！'; fb.className='feedback ok'; quizCorrect++;
-  } else {
-    fb.textContent=`✗ 正确答案是 ${quizCurAns}`; fb.className='feedback no';
-    addWrong(quizList[quizIdx]);
-  }
+  if(ua===quizCurAns){ fb.textContent='✓ 答对啦！'; fb.className='feedback ok'; quizCorrect++; }
+  else { fb.textContent=`✗ 正确答案是 ${quizCurAns}`; fb.className='feedback no'; addWrong(quizList[quizIdx]); }
   quizIdx++;
   if(quizIdx>=quizList.length){ endQuiz(false); return; }
   setTimeout(showQuestion, 700);
@@ -329,12 +810,9 @@ function endQuiz(manual){
   const total=quizList.length;
   const pct=Math.round(quizCorrect/total*100);
   document.getElementById('resultText').textContent=`答对 ${quizCorrect} / ${total} 题`;
-  let grade = pct>=90?'太厉害了！🌟':pct>=70?'很不错！👍':pct>=50?'继续加油！💪':'多练习会更好！📚';
-  document.getElementById('resultDetail').textContent=grade;
+  document.getElementById('resultDetail').textContent = pct>=90?'太厉害了！🌟':pct>=70?'很不错！👍':pct>=50?'继续加油！💪':'多练习会更好！📚';
 }
-// 回车提交
 document.getElementById('quizAns').addEventListener('keydown',e=>{ if(e.key==='Enter') submitAnswer(); });
-
 function addWrong(q){
   const arr=load(LS.wrong,[]);
   arr.unshift({text:q.text, ans:q.ans, ts:Date.now()});
@@ -347,33 +825,17 @@ function renderWrong(){
   const box=document.getElementById('wrongList');
   if(arr.length===0){ box.innerHTML=''; document.getElementById('wrongEmpty').style.display='block'; return; }
   document.getElementById('wrongEmpty').style.display='none';
-  box.innerHTML=arr.map((w,i)=>`<div class="list-item">
-    <div><div class="name">${w.text} = ?</div><div class="meta">答案：${w.ans}</div></div>
-    <button class="del" onclick="delWrong(${i})">删除</button>
-  </div>`).join('');
+  box.innerHTML=arr.map((w,i)=>`<div class="list-item"><div><div class="name">${w.text} = ?</div><div class="meta">答案：${w.ans}</div></div><button class="del" onclick="delWrong(${i})">删除</button></div>`).join('');
 }
 function delWrong(i){ const arr=load(LS.wrong,[]); arr.splice(i,1); save(LS.wrong,arr); renderWrong(); }
 
-// ============ 语文 ============
-let cnSet='hanzi', cnIdx=0;
-document.querySelectorAll('#chineseSeg .chip').forEach(c=>c.onclick=()=>{
-  document.querySelectorAll('#chineseSeg .chip').forEach(x=>x.classList.remove('active'));
-  c.classList.add('active'); cnSet=c.dataset.set; cnIdx=0; renderChinese();
-});
-function curChinese(){ return cnSet==='hanzi'?HANZI:POEMS; }
-function renderChinese(){
-  const data=curChinese();
-  const item=data[cnIdx%data.length];
-  const big=document.getElementById('cnBig'), py=document.getElementById('cnPinyin'), sm=document.getElementById('cnSmall');
-  if(cnSet==='hanzi'){ big.textContent=item.w; py.textContent=item.py; sm.textContent=item.m; }
-  else { big.textContent=item.w+' · '+item.a; py.textContent='古诗'; sm.textContent=item.m; }
-  // 进度点
-  document.getElementById('cnDots').innerHTML=data.map((_,i)=>`<span class="dot ${i===cnIdx%data.length?'done':''}"></span>`).join('');
-}
-function nextChinese(){ cnIdx++; renderChinese(); }
-function prevChinese(){ cnIdx--; renderChinese(); }
-
 // ============ 英语 ============
+const WORDS = [
+  {en:'apple',zh:'苹果'},{en:'banana',zh:'香蕉'},{en:'cat',zh:'猫'},{en:'dog',zh:'狗'},
+  {en:'book',zh:'书'},{en:'pen',zh:'钢笔'},{en:'red',zh:'红色'},{en:'blue',zh:'蓝色'},
+  {en:'sun',zh:'太阳'},{en:'moon',zh:'月亮'},{en:'tree',zh:'树'},{en:'fish',zh:'鱼'},
+  {en:'teacher',zh:'老师'},{en:'student',zh:'学生'},{en:'school',zh:'学校'},{en:'water',zh:'水'}
+];
 let enMode='en', enIdx=0;
 document.querySelectorAll('#enModeSeg .chip').forEach(c=>c.onclick=()=>{
   document.querySelectorAll('#enModeSeg .chip').forEach(x=>x.classList.remove('active'));
@@ -389,20 +851,6 @@ function renderEnglish(){
 function nextEnglish(){ enIdx++; renderEnglish(); }
 function prevEnglish(){ enIdx--; renderEnglish(); }
 
-// ============ 语音 ============
-function speak(text, lang){
-  if(!('speechSynthesis' in window)) return;
-  try{
-    const u=new SpeechSynthesisUtterance(text); u.lang=lang; u.rate=0.9;
-    speechSynthesis.cancel(); speechSynthesis.speak(u);
-  }catch(e){}
-}
-function speakCurrent(){
-  if(cnSet==='hanzi'){ const item=HANZI[cnIdx%HANZI.length]; speak(item.w,'zh-CN'); }
-  else { const item=POEMS[cnIdx%POEMS.length]; speak(item.m,'zh-CN'); }
-}
-function speakEnglish(){ speak(document.getElementById('enBig').dataset.val||'', 'en-US'); }
-
 // ============ 打卡 ============
 function todayStr(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
 function doCheckin(){
@@ -414,14 +862,12 @@ function doCheckin(){
 function renderCheckin(){
   const arr=load(LS.checkin,[]);
   const set=new Set(arr);
-  // 连续天数
   let streak=0; const d=new Date();
   while(true){
     const s=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     if(set.has(s)){ streak++; d.setDate(d.getDate()-1); } else break;
   }
   document.getElementById('streakText').textContent= streak>0?`🔥 连续打卡 ${streak} 天，真棒！`:'今天还没有打卡哦';
-  // 当月网格
   const now=new Date();
   const y=now.getFullYear(), m=now.getMonth();
   const first=new Date(y,m,1).getDay();
@@ -429,7 +875,6 @@ function renderCheckin(){
   const today=todayStr();
   let html='';
   for(let i=0;i<first;i++) html+='<div class="day-cell"></div>';
-  const wnames=['日','一','二','三','四','五','六'];
   for(let i=1;i<=days;i++){
     const s=`${y}-${String(m+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
     const cls='day-cell'+(set.has(s)?' done':'')+(s===today?' today':'');
@@ -440,7 +885,11 @@ function renderCheckin(){
 
 // ============ 初始化 ============
 function init(){
-  renderChinese(); renderEnglish(); renderWrong(); renderCheckin();
+  initGradeSelect();
+  renderChinesePage();
+  renderEnglish();
+  renderWrong();
+  renderCheckin();
 }
 init();
 </script>
