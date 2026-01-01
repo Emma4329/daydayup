@@ -7,6 +7,10 @@
 <meta name="theme-color" content="#FF8A3D">
 <!-- build: daydayup-deploy 2026-08-30T15:08:11+08:00 -->
 <title>天天向上 · 小学生学习平台</title>
+<link rel="icon" href="icon.jpg">
+<link rel="apple-touch-icon" href="icon.jpg">
+<link rel="apple-touch-startup-image" href="icon.jpg">
+<meta name="apple-mobile-web-app-title" content="天天向上">
 <style>
 :root {
   --bg:#FFF7EF; --card:#FFFFFF; --border:#FFE3C8;
@@ -369,10 +373,13 @@ select,input[type=text],input[type=number]{width:100%;padding:12px;border:2px so
         <span class="chip wrong-tab-chip" data-wtab="math" onclick="switchWrongTab('math')">数学</span>
         <span class="chip wrong-tab-chip" data-wtab="english" onclick="switchWrongTab('english')">英语</span>
       </div>
-      <div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-bottom:12px;">
-        <span style="font-size:12px;color:var(--text-light);font-weight:700;">排序</span>
-        <span class="chip wrong-sort-chip active" id="wrongSortTime" style="font-size:12px;padding:6px 12px;" onclick="switchWrongSort('time')">时间</span>
-        <span class="chip wrong-sort-chip" id="wrongSortCount" style="font-size:12px;padding:6px 12px;" onclick="switchWrongSort('count')">次数</span>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px;">
+        <button class="btn btn-sm btn-outline" id="addWrongBtn" onclick="openAddWrongModal()" style="display:none;border-color:var(--primary-light);color:var(--primary-dark);">➕ 新增错题</button>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:12px;color:var(--text-light);font-weight:700;">排序</span>
+          <span class="chip wrong-sort-chip active" id="wrongSortTime" style="font-size:12px;padding:6px 12px;" onclick="switchWrongSort('time')">时间</span>
+          <span class="chip wrong-sort-chip" id="wrongSortCount" style="font-size:12px;padding:6px 12px;" onclick="switchWrongSort('count')">次数</span>
+        </div>
       </div>
       <div class="row" id="wrongActions" style="margin-bottom:12px;display:none;">
         <button class="btn btn-green" style="flex:1;" onclick="dictateSelectedWrong()">🎧 去听写</button>
@@ -2389,6 +2396,8 @@ function parseOldChineseWrong(w){
   return {type:'hanzi', w:word, py:py, e1:w.e1||'', e2:w.e2||''};
 }
 function renderWrong(){
+  const addBtn = document.getElementById('addWrongBtn');
+  if(addBtn) addBtn.style.display = wrongTab === 'chinese' ? 'inline-block' : 'none';
   let all=load(LS.wrong,[]);
   // 兼容旧数据：没有 count 的默认为 1
   all.forEach(w=>{ if(!w.count) w.count = 1; });
@@ -2470,6 +2479,8 @@ function switchWrongTab(tab){
   wrongTab = tab;
   wrongSelections.clear();
   document.querySelectorAll('.wrong-tab-chip').forEach(c=>c.classList.toggle('active', c.dataset.wtab===tab));
+  const addBtn = document.getElementById('addWrongBtn');
+  if(addBtn) addBtn.style.display = tab === 'chinese' ? 'inline-block' : 'none';
   renderWrong();
 }
 function switchWrongSort(sort){
@@ -2492,6 +2503,32 @@ function wrongDisplayAns(w){
   if(w.type==='chinese-poem') return `${w.full || ''}`;
   if(w.text && (w.text.includes('听写') || w.text.includes('古诗'))) return `答案：${w.ans}`;
   return `答案：${w.ans}`;
+}
+function openAddWrongModal(){
+  openModal('新增语文错题', `
+    <div style="margin-bottom:10px;">
+      <input type="text" id="addWrongInput" placeholder="输入一个字或词语" style="width:100%;padding:10px;border-radius:10px;border:1px solid var(--border);font-size:16px;">
+    </div>
+    <div style="font-size:13px;color:var(--text-light);">输入单个字将加入为生字，输入多个字加入为词语。</div>
+  `, '确定', ()=>{
+    const val = document.getElementById('addWrongInput')?.value?.trim();
+    if(!val) return;
+    doAddWrong(val);
+  });
+}
+function doAddWrong(val){
+  if(!/^[\u4e00-\u9fa5]+$/.test(val)){ alert('请输入纯汉字'); return; }
+  const ts = Date.now();
+  let entry;
+  if(val.length === 1){
+    let py = HANZI_PY_MAP[val] || wordPinyin(val) || '';
+    entry = {type:'chinese-hanzi', w:val, py:py, e1:'', e2:'', grade:wrongGrade, ts:ts, count:1};
+  } else {
+    entry = {type:'chinese-word', w:val, py:wordPinyin(val)||'', grade:wrongGrade, ts:ts, count:1};
+  }
+  upsertWrong(entry);
+  renderWrong();
+  alert('已加入错题本');
 }
 function toggleWrongSelect(i){
   if(wrongSelections.has(i)) wrongSelections.delete(i); else wrongSelections.add(i);
