@@ -852,24 +852,21 @@ if('speechSynthesis' in window){ speechSynthesis.onvoiceschanged = _loadVoices; 
 function getMandarinVoice(){
   if(!_voices || !_voices.length) _loadVoices();
   if(!_voices || !_voices.length) return null;
-  // 严格排除粤语/港/台/澳/繁体；同时在名称/URI 里再次排除粤语标记（防止 lang 标错）
+  // 严格排除粤语/港/台/澳/繁体；名称/URI 里再次排除粤语标记（防止 lang 被错标为 zh-CN）
   const badLang = ['yue','zh-hk','zh-tw','zh-mo','zh-hant'];
   const cantonName = ['yue','cantonese','cantones','粵','粤','香港','hongkong','廣東','广东'];
   const isBadName = v => { const s=((v.name||'')+' '+(v.voiceURI||'')).toLowerCase(); return cantonName.some(k=>s.indexOf(k)>=0); };
   const isZhCN = x => { const l=(x.lang||'').toLowerCase(); return (l==='zh-cn' || l.startsWith('zh-cn')) && !badLang.some(b=>l.indexOf(b)>=0) && !isBadName(x); };
   const cnVoices = _voices.filter(isZhCN);
-  if(cnVoices.length){
-    // 优先已知的普通话女声，再按通用女声关键词打分
-    const preferred = ['ting-ting','tingting','huihui','yaoyao','xiaoxiao','xiaoyi','yushu','yu-shu','普通话（中国大陆）','普通话 (中国大陆)','google 普通话'];
-    const femaleKW = ['女','female','woman','lily','zira','susan','tingting','ting-ting','huihui','yaoyao','xiaoxiao','xiaoyi','yushu','yu-shu','zhilin','ruoxi','xiaomeng','yunxi'];
-    const maleKW = ['kangkang','yunyang','男','male','云扬','康康','david','mark','xiaobei'];
-    const score = v => { const s=((v.name||'')+' '+(v.voiceURI||'')).toLowerCase(); let n=0; if(preferred.some(k=>s.indexOf(k)>=0)) n+=4; if(femaleKW.some(k=>s.indexOf(k)>=0)) n+=2; if(maleKW.some(k=>s.indexOf(k)>=0)) n-=2; return n; };
-    cnVoices.sort((a,b)=>score(b)-score(a));
-    return cnVoices[0];
+  if(!cnVoices.length) return null;
+  // 仅用“精确名单”选普通话女声，避免模糊关键词把粤语女声排到前面
+  const preferredFemale = ['ting-ting','tingting','huihui','yaoyao','xiaoxiao','xiaoyi','yushu','yu-shu','普通话（中国大陆）','普通话 (中国大陆)','google 普通话','microsoft xiaoxiao','microsoft xiaoyi','microsoft huihui','microsoft yaoyao'];
+  for(const k of preferredFemale){
+    const v = cnVoices.find(x => ((x.name||'')+' '+(x.voiceURI||'')).toLowerCase().indexOf(k) >= 0);
+    if(v) return v;
   }
-  // 退而求其次：任何 zh- 开头（排除粤语/港/台/澳/繁体，且名字不含粤语标记）
-  const v = _voices.find(x=>{ const l=(x.lang||'').toLowerCase(); return l.startsWith('zh') && !badLang.some(b=>l.indexOf(b)>=0) && !isBadName(x); });
-  return v || null;
+  // 兜底：普通话语音列表的第一个（保持原始顺序，实测即普通话，绝不退回粤语）
+  return cnVoices[0];
 }
 function speakWord(text){
   if(!('speechSynthesis' in window)) return;
