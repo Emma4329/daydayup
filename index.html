@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#FF8A3D">
-<!-- build: daydayup-deploy 2026-08-30T09:57:00+08:00 -->
+<!-- build: daydayup-deploy 2026-08-30T10:15:00+08:00 -->
 <title>天天向上 · 小学生学习平台</title>
 <style>
 :root {
@@ -65,6 +65,11 @@ select,input[type=text],input[type=number]{width:100%;padding:12px;border:2px so
 .park-points-num{font-size:40px;font-weight:900;color:var(--primary-dark);line-height:1.1;}
 .park-points-label{font-size:13px;color:var(--text-light);font-weight:700;}
 .park-quiz .quiz-num{margin:6px 0;}
+.task-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border);gap:10px;}
+.task-row:last-child{border-bottom:none;}
+.task-name{font-size:15px;font-weight:700;flex:1;min-width:0;}
+.task-btn{border:none;border-radius:999px;padding:8px 14px;font-size:13px;font-weight:800;cursor:pointer;background:var(--bg);color:var(--text-light);flex-shrink:0;white-space:nowrap;}
+.task-btn.done{background:var(--green);color:#fff;}
 .empty-tip{text-align:center;color:var(--text-light);font-size:14px;padding:20px;}
 .checkin-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:6px;}
 .day-cell{aspect-ratio:1;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;background:var(--bg);border:1px solid var(--border);}
@@ -365,6 +370,10 @@ select,input[type=text],input[type=number]{width:100%;padding:12px;border:2px so
       <div class="hint">连续打卡天数越多，学习越棒！</div>
       <div class="checkin-grid" id="checkinGrid"></div>
     </div>
+    <div class="card">
+      <div class="card-title">📋 每日任务清单 <span class="badge" id="taskStarTotal">0 ⭐</span></div>
+      <div id="taskList"></div>
+    </div>
   </div>
 
   <!-- 积分乐园 -->
@@ -373,13 +382,13 @@ select,input[type=text],input[type=number]{width:100%;padding:12px;border:2px so
       <div class="card-title">🎡 积分乐园</div>
       <div class="park-points">
         <div class="park-points-num" id="parkPoints">0</div>
-        <div class="park-points-label">我的积分</div>
+        <div class="park-points-label">我的星星 ⭐</div>
       </div>
       <div class="row" style="margin-top:6px;">
-        <button class="btn btn-green" style="flex:1;" id="parkSignInBtn" onclick="parkSignIn()">🎁 每日签到 +5</button>
-        <button class="btn btn-purple" style="flex:1;" onclick="parkWheel()">🎰 幸运转盘 -20</button>
+        <button class="btn btn-green" style="flex:1;" id="parkSignInBtn" onclick="parkSignIn()">🎁 每日签到 +5⭐</button>
+        <button class="btn btn-purple" style="flex:1;" onclick="parkWheel()">🎰 幸运转盘 -20⭐</button>
       </div>
-      <div class="hint" id="parkMsg">每日签到领积分，转盘消耗积分抽奖励！</div>
+      <div class="hint" id="parkMsg">每日签到领星星，转盘消耗星星抽奖励！</div>
     </div>
     <div class="card">
       <div class="card-title">🧮 口算抢分</div>
@@ -391,7 +400,7 @@ select,input[type=text],input[type=number]{width:100%;padding:12px;border:2px so
         </div>
         <div class="feedback" id="parkQuizFb"></div>
       </div>
-      <div class="hint">答对一题 +5 积分，连续答对更开心！</div>
+      <div class="hint">答对一题 +5⭐，连续答对更开心！</div>
     </div>
   </div>
 </div>
@@ -428,7 +437,8 @@ const LS = {
   chineseGrade: 'ddup_chinese_grade_v1',
   wrongGrade: 'ddup_wrong_grade_v1',
   points: 'ddup_points_v1',
-  parkSignInDate: 'ddup_park_signin_v1'
+  parkSignInDate: 'ddup_park_signin_v1',
+  checkinTasks: 'ddup_checkin_tasks_v1'
 };
 function load(k, def){ try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch(e){ return def; } }
 function save(k, v){ localStorage.setItem(k, JSON.stringify(v)); }
@@ -2474,6 +2484,46 @@ function renderCheckin(){
     html+=`<div class="${cls}">${i}</div>`;
   }
   document.getElementById('checkinGrid').innerHTML=html;
+  renderCheckinTasks();
+}
+
+// ============ 每日任务清单 ============
+const TASKS = [
+  {key:'chinese', name:'语文听写✍🏻背诵'},
+  {key:'math', name:'数学口算🧮练习'},
+  {key:'english', name:'英语6个单词'},
+  {key:'reading', name:'课外阅读📖15分钟'},
+  {key:'writing', name:'硬笔🖊️练字一页'}
+];
+function loadTasks(){
+  const t = todayStr();
+  const data = load(LS.checkinTasks, {date:'', done:{}});
+  if(data.date !== t){
+    data.date = t;
+    data.done = {};
+    save(LS.checkinTasks, data);
+  }
+  return data;
+}
+function renderCheckinTasks(){
+  const data = loadTasks();
+  const box = document.getElementById('taskList');
+  if(box) box.innerHTML = TASKS.map(ts=>`
+    <div class="task-row">
+      <span class="task-name">${ts.name}</span>
+      <button class="task-btn ${data.done[ts.key]?'done':''}" onclick="toggleTask('${ts.key}')">${data.done[ts.key]?'已完成 ✓':'未完成'}</button>
+    </div>
+  `).join('');
+  const total = document.getElementById('taskStarTotal');
+  if(total) total.textContent = (parkPoints||0) + ' ⭐';
+}
+function toggleTask(key){
+  const data = loadTasks();
+  const wasDone = !!data.done[key];
+  data.done[key] = !wasDone;
+  save(LS.checkinTasks, data);
+  if(!wasDone) parkAddPoints(3); // 完成 +3 星；取消不扣星
+  renderCheckinTasks();
 }
 
 // ============ 积分乐园 ============
@@ -2508,21 +2558,21 @@ function parkSignIn(){
   const btn = document.getElementById('parkSignInBtn');
   if(btn) btn.disabled = true;
   const msg = document.getElementById('parkMsg');
-  if(msg) msg.textContent = '签到成功，+5 积分！';
+  if(msg) msg.textContent = '签到成功，+5⭐！';
 }
 function parkWheel(){
-  if(parkPoints < 20){ alert('积分不足，先去签到或口算抢分吧！'); return; }
+  if(parkPoints < 20){ alert('星星不足，先去签到、完成任务或口算抢分吧！'); return; }
   parkAddPoints(-20);
   const rewards = [5, 10, 20, 30, 50, '再来一次'];
   const r = rewards[Math.floor(Math.random()*rewards.length)];
   const msg = document.getElementById('parkMsg');
   if(r === '再来一次'){
-    if(msg) msg.textContent = '🎉 转中「再来一次」！这次不扣积分，再转一次～';
+    if(msg) msg.textContent = '🎉 转中「再来一次」！这次不扣星星，再转一次～';
     parkAddPoints(20); // 把刚扣的还回去
     return;
   }
   parkAddPoints(r);
-  if(msg) msg.textContent = `🎰 恭喜抽中 +${r} 积分！`;
+  if(msg) msg.textContent = `🎰 恭喜抽中 +${r}⭐！`;
 }
 function parkQuizStart(){
   const a = Math.floor(Math.random()*20)+1;
@@ -2546,7 +2596,7 @@ function parkQuizSubmit(){
   const fb = document.getElementById('parkQuizFb');
   if(val === parkQuizAns){
     parkAddPoints(5);
-    if(fb){ fb.textContent='✓ 答对啦！+5 积分'; fb.className='feedback ok'; }
+    if(fb){ fb.textContent='✓ 答对啦！+5⭐'; fb.className='feedback ok'; }
   } else {
     if(fb){ fb.textContent=`✗ 正确答案 ${parkQuizAns}`; fb.className='feedback no'; }
   }
