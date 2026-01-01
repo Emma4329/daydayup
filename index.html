@@ -827,9 +827,27 @@ function delWord(ev, ui, idx, type, field, i){
 }
 
 // ============ 朗读 ============
+// 预载语音列表，优先挑普通话(zh-CN)语音，避免设备/系统默认的粤语语音被选中
+let _voices = [];
+function _loadVoices(){
+  try{ _voices = ('speechSynthesis' in window) ? speechSynthesis.getVoices() : []; }catch(e){ _voices = []; }
+}
+_loadVoices();
+if('speechSynthesis' in window){ speechSynthesis.onvoiceschanged = _loadVoices; }
+function getMandarinVoice(){
+  if(!_voices || !_voices.length) _loadVoices();
+  if(!_voices || !_voices.length) return null;
+  // 1) 优先 zh-CN
+  let v = _voices.find(x=>x.lang==='zh-CN') || _voices.find(x=>{ const l=(x.lang||'').toLowerCase(); return l.startsWith('zh-cn'); });
+  if(v) return v;
+  // 2) 退而求其次：任何 zh- 开头，但排除粤语/港/台/澳/繁体
+  const bad = ['yue','zh-hk','zh-tw','zh-mo','zh-hant'];
+  v = _voices.find(x=>{ const l=(x.lang||'').toLowerCase(); return l.startsWith('zh') && !bad.some(b=>l.indexOf(b)>=0); });
+  return v || null;
+}
 function speakWord(text){
   if(!('speechSynthesis' in window)) return;
-  try{ const u=new SpeechSynthesisUtterance(text); u.lang='zh-CN'; u.rate=0.9; speechSynthesis.cancel(); speechSynthesis.speak(u); }catch(e){}
+  try{ const u=new SpeechSynthesisUtterance(text); u.lang='zh-CN'; u.rate=0.9; const mv=getMandarinVoice(); if(mv) u.voice=mv; speechSynthesis.cancel(); speechSynthesis.speak(u); }catch(e){}
 }
 function speakEnglish(){
   const big = document.getElementById('enBig');
@@ -837,7 +855,11 @@ function speakEnglish(){
 }
 function speak(text, lang, rate=0.9){
   if(!('speechSynthesis' in window)) return;
-  try{ const u=new SpeechSynthesisUtterance(text); u.lang=lang; u.rate=rate; speechSynthesis.cancel(); speechSynthesis.speak(u); }catch(e){}
+  try{
+    const u=new SpeechSynthesisUtterance(text); u.lang=lang; u.rate=rate;
+    if((lang||'').toLowerCase().indexOf('zh')===0){ const mv=getMandarinVoice(); if(mv) u.voice=mv; }
+    speechSynthesis.cancel(); speechSynthesis.speak(u);
+  }catch(e){}
 }
 
 // ============ 听写选择 ============
@@ -2821,128 +2843,223 @@ const OUTFITS = [
   {id:'hero',    name:'超级英雄', price:80, top:'#2980b9', pants:'#c0392b', hair:'short', shoe:'#f1c40f', skin:'#ffd9b3'}
 ];
 let currentOutfitId = load(LS.currentOutfit, 'default');
-let islandInited = false;
-let islandScene, islandCamera, islandRenderer, islandChar, islandAnimId = null;
 function ownedOutfits(){
   let o = load(LS.ownedOutfits, ['default']);
   if(!o.includes('default')) o.unshift('default');
   return o;
 }
 function currentOutfit(){ return OUTFITS.find(o=>o.id===currentOutfitId) || OUTFITS[0]; }
-function ensureThree(){
-  if(typeof THREE !== 'undefined') return Promise.resolve();
-  return new Promise((resolve,reject)=>{
-    const s=document.createElement('script');
-    s.src='https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js';
-    s.onload=()=>resolve();
-    s.onerror=()=>reject(new Error('three load fail'));
-    document.head.appendChild(s);
-  });
-}
+
+// ============ 2D 小镇引擎 ============
+let island2d = null; // 运行时状态
+const ISLAND_W = 2400, ISLAND_H = 1800;
+// 道路（马路）：灰色路面 + 黄色中心虚线 + 白色边线 + 白色虚线分隔双车道
+const ISLAND_ROADS = [
+  {x:0, y:560, w:ISLAND_W, h:96, dir:'h'},   // 横向主干道
+  {x:0, y:1180, w:ISLAND_W, h:74, dir:'h'},  // 横向次干道
+  {x:760, y:0, w:96, h:ISLAND_H, dir:'v'},   // 纵向主干道
+  {x:1560, y:0, w:74, h:ISLAND_H, dir:'v'}   // 纵向次干道
+];
+// 斑马线（路口人行横道），白色条纹块
+const ISLAND_ZEBRAS = [
+  {x:760-18, y:560-46, w:36, h:96}, // 横道1
+  {x:1560-18, y:560-46, w:36, h:96},
+  {x:760-18, y:1180-40, w:36, h:74},
+  {x:1560-18, y:1180-40, w:36, h:74}
+];
+// 占位建筑（以后逐个设计）：彩色方块 + 名字
+const ISLAND_BUILDINGS = [
+  {x:140, y:160, w:200, h:150, color:'#f4a259', name:'家'},
+  {x:980, y:180, w:220, h:160, color:'#5b8e7d', name:'学校'},
+  {x:1820, y:200, w:200, h:150, color:'#7d9ebf', name:'医院'},
+  {x:200, y:820, w:220, h:170, color:'#c97b9b', name:'商店'},
+  {x:1880, y:880, w:220, h:170, color:'#8bbf6a', name:'公园'},
+  {x:1000, y:1420, w:220, h:170, color:'#e0c097', name:'图书馆'}
+];
 function enterIsland(){
   document.getElementById('islandOverlay').style.display='block';
-  ensureThree().then(()=>{
-    if(!islandInited) initIsland();
-    renderIslandStars();
-  }).catch(()=>{
-    alert('3D 引擎加载失败，请检查网络后重试');
-    exitIsland();
-  });
+  initIsland2d();
+  renderIslandStars();
 }
 function exitIsland(){
   document.getElementById('islandOverlay').style.display='none';
-  if(islandAnimId){ cancelAnimationFrame(islandAnimId); islandAnimId=null; }
-  if(islandRenderer){ islandRenderer.dispose(); islandRenderer=null; }
-  islandInited = false;
+  if(island2d){
+    if(island2d.raf) cancelAnimationFrame(island2d.raf);
+    const c = island2d.canvas;
+    if(c){ c.onpointerdown=c.onpointermove=c.onpointerup=c.onpointercancel=null; }
+    island2d = null;
+  }
 }
-function initIsland(){
+function initIsland2d(){
   const wrap = document.getElementById('islandCanvas');
-  const w = wrap.clientWidth, h = wrap.clientHeight;
-  islandScene = new THREE.Scene();
-  islandScene.background = new THREE.Color(0xaee3ff);
-  islandCamera = new THREE.PerspectiveCamera(50, w/h, 0.1, 100);
-  islandCamera.position.set(0, 2.4, 6.2);
-  islandCamera.lookAt(0, 1.1, 0);
-  islandRenderer = new THREE.WebGLRenderer({antialias:true});
-  islandRenderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
-  islandRenderer.setSize(w, h);
-  wrap.innerHTML='';
-  wrap.appendChild(islandRenderer.domElement);
-  islandScene.add(new THREE.AmbientLight(0xffffff, 0.85));
-  const dir = new THREE.DirectionalLight(0xffffff, 0.7);
-  dir.position.set(5,10,7);
-  islandScene.add(dir);
-  buildIsland();
-  islandChar = buildCharacter(currentOutfit());
-  islandScene.add(islandChar);
-  islandInited = true;
-  animateIsland();
-  window.addEventListener('resize', resizeIsland);
+  const canvas = document.createElement('canvas');
+  canvas.style.width='100%'; canvas.style.height='100%';
+  canvas.style.touchAction='none';
+  wrap.innerHTML=''; wrap.appendChild(canvas);
+  const dpr = Math.min(window.devicePixelRatio||1, 2);
+  const cssW = wrap.clientWidth, cssH = wrap.clientHeight;
+  canvas.width = cssW*dpr; canvas.height = cssH*dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  island2d = {
+    canvas, ctx, dpr, cssW, cssH, raf:null,
+    cam:{x:0,y:0},
+    char:{x:240, y:235, tx:240, ty:235, moving:false, dir:1, bob:0},
+    follow:true, drag:null, downPt:null, moved:false
+  };
+  island2d.cam.x = clamp(island2d.char.x - cssW/2, 0, ISLAND_W-cssW);
+  island2d.cam.y = clamp(island2d.char.y - cssH/2, 0, ISLAND_H-cssH);
+  bindIslandInput(canvas);
+  loopIsland2d();
 }
-function buildIsland(){
-  const g = new THREE.Group();
-  const dirt = new THREE.Mesh(new THREE.CylinderGeometry(2.4, 1.7, 1.2, 32), new THREE.MeshStandardMaterial({color:0x9b6b3f}));
-  dirt.position.y = -0.6; g.add(dirt);
-  const grass = new THREE.Mesh(new THREE.CylinderGeometry(2.5, 2.5, 0.3, 32), new THREE.MeshStandardMaterial({color:0x6cc24a}));
-  grass.position.y = 0.05; g.add(grass);
-  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.15,0.18,1,8), new THREE.MeshStandardMaterial({color:0x8b5a2b}));
-  trunk.position.set(1.4, 0.9, -0.4); g.add(trunk);
-  const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.6,16,16), new THREE.MeshStandardMaterial({color:0x3fa34d}));
-  leaf.position.set(1.4, 1.6, -0.4); g.add(leaf);
-  islandScene.add(g);
-}
-function buildCharacter(o){
-  const g = new THREE.Group();
-  const skin = new THREE.MeshStandardMaterial({color:new THREE.Color(o.skin||'#ffd9b3')});
-  const top = new THREE.MeshStandardMaterial({color:new THREE.Color(o.top||'#ffffff')});
-  const pants = new THREE.MeshStandardMaterial({color:new THREE.Color(o.pants||'#222222')});
-  const shoe = new THREE.MeshStandardMaterial({color:new THREE.Color(o.shoe||'#333333')});
-  const hair = new THREE.MeshStandardMaterial({color:0x111111});
-  const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.16,0.85,12), pants); legL.position.set(-0.2,-0.42,0);
-  const legR = legL.clone(); legR.position.x = 0.2;
-  const shoeL = new THREE.Mesh(new THREE.BoxGeometry(0.24,0.16,0.42), shoe); shoeL.position.set(-0.2,-0.88,0.07);
-  const shoeR = shoeL.clone(); shoeR.position.x = 0.2;
-  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.32,0.27,0.9,16), top); body.position.y = 0.45;
-  const armL = new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.1,0.75,10), top); armL.position.set(-0.42,0.45,0); armL.rotation.z = 0.25;
-  const armR = armL.clone(); armR.position.x = 0.42; armR.rotation.z = -0.25;
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.3,20,20), skin); head.position.y = 1.15;
-  let hairMesh;
-  if(o.hair==='long'){
-    hairMesh = new THREE.Group();
-    const cap = new THREE.Mesh(new THREE.SphereGeometry(0.32,20,20,0,Math.PI*2,0,Math.PI/1.7), hair); cap.position.y = 1.18;
-    const back = new THREE.Mesh(new THREE.CylinderGeometry(0.31,0.29,0.55,20), hair); back.position.y = 1.02;
-    hairMesh.add(cap); hairMesh.add(back);
+function clamp(v,a,b){ return v<a?a:(v>b?b:v); }
+function loopIsland2d(){
+  if(!island2d) return;
+  const st = island2d, ch = st.char;
+  // 自适应尺寸
+  const cw = st.canvas.clientWidth, chh = st.canvas.clientHeight;
+  if(cw !== st.cssW || chh !== st.cssH){
+    st.cssW = cw; st.cssH = chh;
+    st.canvas.width = cw*st.dpr; st.canvas.height = chh*st.dpr;
+    st.ctx.setTransform(st.dpr,0,0,st.dpr,0,0);
+  }
+  // 行走
+  if(ch.moving){
+    const dx = ch.tx-ch.x, dy = ch.ty-ch.y;
+    const dist = Math.hypot(dx,dy);
+    const speed = 2.6;
+    if(dist <= speed){ ch.x=ch.tx; ch.y=ch.ty; ch.moving=false; }
+    else { ch.x += dx/dist*speed; ch.y += dy/dist*speed; ch.bob = (ch.bob+0.35)%1000; }
+    if(Math.abs(dx)>0.5) ch.dir = dx>0?1:-1;
+  }
+  // 镜头跟随
+  if(st.follow){
+    st.cam.x = clamp(ch.x - st.cssW/2, 0, ISLAND_W-st.cssW);
+    st.cam.y = clamp(ch.y - st.cssH/2, 0, ISLAND_H-st.cssH);
   } else {
-    hairMesh = new THREE.Mesh(new THREE.SphereGeometry(0.32,20,20,0,Math.PI*2,0,Math.PI/1.8), hair);
-    hairMesh.position.y = 1.18;
+    st.cam.x = clamp(st.cam.x, 0, ISLAND_W-st.cssW);
+    st.cam.y = clamp(st.cam.y, 0, ISLAND_H-st.cssH);
   }
-  g.add(legL, legR, shoeL, shoeR, body, armL, armR, head, hairMesh);
-  return g;
+  drawIsland2d();
+  st.raf = requestAnimationFrame(loopIsland2d);
 }
-function animateIsland(){
-  if(!islandInited || !islandRenderer) return;
-  islandAnimId = requestAnimationFrame(animateIsland);
-  if(islandChar){
-    islandChar.rotation.y += 0.012;
-    islandChar.position.y = Math.sin(Date.now()*0.002)*0.06;
+function drawIsland2d(){
+  const st = island2d, ctx = st.ctx, cam = st.cam;
+  ctx.clearRect(0,0,st.cssW,st.cssH);
+  ctx.save();
+  ctx.translate(-cam.x,-cam.y);
+  // 草地
+  ctx.fillStyle = '#bfe6a8';
+  ctx.fillRect(0,0,ISLAND_W,ISLAND_H);
+  // 道路（马路）：灰底 + 白边线 + 黄虚线中线 + 白虚线车道
+  ISLAND_ROADS.forEach(r=>{
+    ctx.fillStyle = '#6f6f6f';
+    ctx.fillRect(r.x,r.y,r.w,r.h);
+    ctx.fillStyle = '#ffffff';
+    if(r.dir==='h'){ ctx.fillRect(r.x, r.y, r.w, 3); ctx.fillRect(r.x, r.y+r.h-3, r.w, 3); }
+    else { ctx.fillRect(r.x, r.y, 3, r.h); ctx.fillRect(r.x+r.w-3, r.y, 3, r.h); }
+    ctx.fillStyle = '#ffd54a';
+    if(r.dir==='h'){ for(let x=r.x; x<r.x+r.w; x+=34) ctx.fillRect(x, r.y+r.h/2-2, 18, 4); }
+    else { for(let y=r.y; y<r.y+r.h; y+=34) ctx.fillRect(r.x+r.w/2-2, y, 4, 18); }
+    ctx.fillStyle = '#ffffff';
+    if(r.dir==='h'){ for(let x=r.x; x<r.x+r.w; x+=30){ ctx.fillRect(x, r.y+r.h/4-1, 14, 2); ctx.fillRect(x, r.y+r.h*3/4-1, 14, 2); } }
+    else { for(let y=r.y; y<r.y+r.h; y+=30){ ctx.fillRect(r.x+r.w/4-1, y, 2, 14); ctx.fillRect(r.x+r.w*3/4-1, y, 2, 14); } }
+  });
+  // 斑马线（人行横道）
+  ISLAND_ZEBRAS.forEach(z=>{
+    ctx.fillStyle = '#ffffff';
+    const horiz = z.w < z.h;
+    if(horiz){ for(let y=z.y; y<z.y+z.h; y+=12) ctx.fillRect(z.x, y, z.w, 6); }
+    else { for(let x=z.x; x<z.x+z.w; x+=12) ctx.fillRect(x, z.y, 6, z.h); }
+  });
+  // 建筑（占位）
+  ISLAND_BUILDINGS.forEach(b=>{
+    ctx.fillStyle = b.color;
+    ctx.fillRect(b.x,b.y,b.w,b.h);
+    ctx.strokeStyle = 'rgba(0,0,0,0.15)'; ctx.lineWidth=2; ctx.strokeRect(b.x,b.y,b.w,b.h);
+    ctx.fillStyle = '#3a2e25'; ctx.font = 'bold 22px sans-serif';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(b.name, b.x+b.w/2, b.y+b.h/2);
+  });
+  drawChar2d();
+  ctx.restore();
+}
+function drawChar2d(){
+  const st = island2d, ctx = st.ctx, ch = st.char;
+  const o = currentOutfit();
+  const bob = ch.moving ? Math.sin(ch.bob)*3 : 0;
+  ctx.save();
+  ctx.translate(ch.x, ch.y);
+  ctx.scale(ch.dir, 1);
+  // 影子
+  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  ctx.beginPath(); ctx.ellipse(0, 18, 16, 6, 0, 0, Math.PI*2); ctx.fill();
+  // 腿
+  ctx.fillStyle = o.pants||'#222';
+  ctx.fillRect(-9, 2-bob, 7, 16); ctx.fillRect(2, 2-bob, 7, 16);
+  // 鞋
+  ctx.fillStyle = o.shoe||'#333';
+  ctx.fillRect(-11, 16-bob, 11, 5); ctx.fillRect(0, 16-bob, 11, 5);
+  // 身体
+  ctx.fillStyle = o.top||'#fff';
+  roundRect(ctx, -12, -22-bob, 24, 26, 8); ctx.fill();
+  // 头
+  ctx.fillStyle = o.skin||'#ffd9b3';
+  ctx.beginPath(); ctx.arc(0, -32-bob, 12, 0, Math.PI*2); ctx.fill();
+  // 头发
+  ctx.fillStyle = '#111';
+  ctx.beginPath(); ctx.arc(0, -34-bob, 12, Math.PI, Math.PI*2); ctx.fill();
+  if(o.hair==='long'){
+    ctx.fillRect(-12, -36-bob, 24, 18);
+    ctx.fillRect(-12, -22-bob, 5, 20); ctx.fillRect(7, -22-bob, 5, 20);
   }
-  islandRenderer.render(islandScene, islandCamera);
+  ctx.restore();
 }
-function resizeIsland(){
-  if(!islandInited || !islandRenderer) return;
-  const wrap = document.getElementById('islandCanvas');
-  const w = wrap.clientWidth, h = wrap.clientHeight;
-  islandCamera.aspect = w/h; islandCamera.updateProjectionMatrix();
-  islandRenderer.setSize(w, h);
+function roundRect(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);
+  ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
+function bindIslandInput(canvas){
+  canvas.onpointerdown = (e)=>{
+    if(!island2d) return;
+    if(canvas.setPointerCapture) try{ canvas.setPointerCapture(e.pointerId); }catch(_){}
+    const p = pt(e);
+    island2d.downPt = p; island2d.moved=false;
+    island2d.drag = {sx:p.x, sy:p.y, camx:island2d.cam.x, camy:island2d.cam.y};
+  };
+  canvas.onpointermove = (e)=>{
+    if(!island2d || !island2d.drag) return;
+    const p = pt(e);
+    const dx = p.x - island2d.drag.sx, dy = p.y - island2d.drag.sy;
+    if(!island2d.moved && Math.hypot(dx,dy) > 8){ island2d.moved = true; island2d.follow = false; }
+    if(island2d.moved){ island2d.cam.x = island2d.drag.camx - dx; island2d.cam.y = island2d.drag.camy - dy; }
+  };
+  canvas.onpointerup = (e)=>{
+    if(!island2d) return;
+    if(!island2d.moved && island2d.downPt){
+      const wx = island2d.downPt.x + island2d.cam.x;
+      const wy = island2d.downPt.y + island2d.cam.y;
+      island2d.char.tx = clamp(wx, 10, ISLAND_W-10);
+      island2d.char.ty = clamp(wy, 10, ISLAND_H-10);
+      island2d.char.moving = true;
+    }
+    island2d.drag = null; island2d.downPt = null; island2d.follow = true;
+  };
+  canvas.onpointercancel = ()=>{ if(island2d){ island2d.drag=null; island2d.downPt=null; island2d.follow=true; } };
+}
+function pt(e){
+  const r = island2d.canvas.getBoundingClientRect();
+  return {x: e.clientX - r.left, y: e.clientY - r.top};
 }
 function equipOutfit(id){
   currentOutfitId = id;
   save(LS.currentOutfit, id);
-  if(islandChar && islandScene){
-    islandScene.remove(islandChar);
-    islandChar = buildCharacter(currentOutfit());
-    islandScene.add(islandChar);
-  }
+  // 2D 模式下人物颜色由 drawChar2d 每帧读取 currentOutfit()，无需重建
 }
 function renderIslandStars(){
   const s = parkPoints;
