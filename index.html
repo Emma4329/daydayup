@@ -57,6 +57,9 @@ select,input[type=text],input[type=number]{width:100%;padding:12px;border:2px so
 .list-item .name{font-size:16px;font-weight:700;}
 .list-item .meta{font-size:12px;color:var(--text-light);}
 .del{background:var(--red);color:#fff;border:none;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;}
+.history-actions{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+.fav-btn{background:none;border:none;font-size:22px;line-height:1;cursor:pointer;padding:2px 4px;color:#BDBDBD;}
+.fav-btn.fav{color:#E91E63;}
 .empty-tip{text-align:center;color:var(--text-light);font-size:14px;padding:20px;}
 .checkin-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:6px;}
 .day-cell{aspect-ratio:1;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;background:var(--bg);border:1px solid var(--border);}
@@ -931,7 +934,9 @@ function saveDictationHistory(){
     time: timeStr,
     grade: data.name,
     items: items,
-    count: dictationQueue.length
+    count: dictationQueue.length,
+    queue: JSON.parse(JSON.stringify(dictationQueue)),
+    fav: false
   };
   const arr = load(LS.dictationHistory, []);
   arr.unshift(entry);
@@ -949,9 +954,36 @@ function renderDictationHistory(){
         <div class="name">${h.date} ${h.time}</div>
         <div class="meta">${h.grade} · 听写：${h.items.join('、')} · 共 ${h.count} 项</div>
       </div>
-      <button class="del" onclick="delDictationHistory(${i})">删除</button>
+      <div class="history-actions">
+        ${h.queue && h.queue.length ? `<button class="btn btn-sm btn-green" onclick="replayDictationHistory(${i})">听写</button>` : ''}
+        <button class="fav-btn ${h.fav?'fav':''}" onclick="toggleDictationFav(${i})">${h.fav?'♥':'♡'}</button>
+        <button class="del" onclick="delDictationHistory(${i})">删除</button>
+      </div>
     </div>
   `).join('');
+}
+function replayDictationHistory(i){
+  const arr = load(LS.dictationHistory, []);
+  const h = arr[i];
+  if(!h || !h.queue || h.queue.length===0){ alert('该记录无法再次听写'); return; }
+  dictationQueue = JSON.parse(JSON.stringify(h.queue));
+  dictationIndex = 0;
+  dictationPaused = false;
+  dictationPlaying = false;
+  clearTimeout(dictationTimer);
+  wrongBookReturn = false;
+  lastWrongPage = 'wrong';
+  lastChineseSubPage = 'dictation';
+  switchPage('dictation');
+  renderDictationItem();
+  dictationSpeakCurrent();
+}
+function toggleDictationFav(i){
+  const arr = load(LS.dictationHistory, []);
+  if(!arr[i]) return;
+  arr[i].fav = !arr[i].fav;
+  save(LS.dictationHistory, arr);
+  renderDictationHistory();
 }
 function delDictationHistory(i){
   const arr = load(LS.dictationHistory, []);
