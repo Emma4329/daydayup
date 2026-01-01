@@ -140,6 +140,7 @@ select,input[type=text],input[type=number]{width:100%;padding:12px;border:2px so
 .dictation-tree-scroll{flex:1;overflow-y:auto;padding:12px 16px 16px;}
 .dictation-screen{background:#fff;border-radius:20px;padding:30px 20px;text-align:center;min-height:220px;display:flex;flex-direction:column;justify-content:center;box-shadow:var(--shadow);border:1px solid var(--border);}
 .dictation-py{font-size:64px;font-weight:800;color:var(--text);margin:10px 0;}
+.dictation-py.dictation-reveal{color:#2E7D32;background:#E8F5E9;border-radius:12px;padding:4px 16px;}
 .dictation-examples{font-size:16px;color:var(--text-light);margin:6px 0 10px;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;}
 .dictation-examples .ex-label{color:var(--text-light);}
 .dictation-examples .ex-word{color:#388E3C;background:#E8F5E9;padding:3px 10px;border-radius:12px;font-weight:600;}
@@ -561,6 +562,7 @@ let dictationIndex = 0;
 let dictationPaused = false;
 let dictationTimer = null;
 let dictationPlaying = false;
+let dictationRevealed = false; // 加入错题本后显示当前词答案
 let speechGen = 0; // 朗读代数,暂停时递增以中止旧 speakQueue 递归
 let dictationConfig = load(LS.dictationConfig, { repeat: 2, interval: 5000, rate: 0.75 });
 let lastChineseSubPage = 'chinese'; // 'chinese' | 'dictation-select' | 'dictation'
@@ -1137,6 +1139,7 @@ function replayDictationHistory(i){
   dictationIndex = 0;
   dictationPaused = false;
   dictationPlaying = false;
+  dictationRevealed = false;
   clearTimeout(dictationTimer);
   wrongBookReturn = false;
   lastWrongPage = 'wrong';
@@ -1169,6 +1172,7 @@ function startDictation(){
   dictationIndex = 0;
   dictationPaused = false;
   dictationPlaying = false;
+  dictationRevealed = false;
   clearTimeout(dictationTimer);
   switchPage('dictation');
   renderDictationItem();
@@ -1179,15 +1183,33 @@ function renderDictationItem(){
   document.getElementById('dictationTitle').textContent = `听写中（${dictationIndex+1}/${dictationQueue.length}）`;
   document.getElementById('dictationProgress').textContent = `${dictationIndex+1} / ${dictationQueue.length}`;
   const exBox = document.getElementById('dictationExamples');
-  if(!item){ document.getElementById('dictationPy').textContent = '完成'; exBox.innerHTML=''; lastChineseSubPage='chinese'; return; }
-  document.getElementById('dictationPy').textContent = toneMark(item.py) || item.w;
-  document.getElementById('dictationSub').textContent = item.type==='poem' ? '古诗全文' : '请根据拼音写出汉字';
-  // 生字显示组词拼音（不含汉字，避免直接给出答案）
-  if(item.type==='hanzi'){
-    const words = getHanziExamples(item);
-    exBox.innerHTML = words.length ? `<span class="ex-label">组词：</span>${words.map(w=>`<span class="ex-word">${wordPinyin(w)}</span>`).join('')}` : '';
+  const pyEl = document.getElementById('dictationPy');
+  if(!item){ pyEl.textContent = '完成'; exBox.innerHTML=''; lastChineseSubPage='chinese'; return; }
+  if(dictationRevealed){
+    document.getElementById('dictationSub').textContent = '答案';
+    pyEl.textContent = item.w || '';
+    pyEl.classList.add('dictation-reveal');
+    if(item.type==='hanzi'){
+      const words = getHanziExamples(item);
+      exBox.innerHTML = words.length ? `<span class="ex-label">组词：</span>${words.map(w=>`<span class="ex-word">${w}</span>`).join('')}` : '';
+    } else if(item.type==='word'){
+      exBox.innerHTML = `<span class="ex-label">词语：</span><span class="ex-word">${item.w}</span>`;
+    } else if(item.type==='poem'){
+      exBox.innerHTML = `<span class="ex-label">古诗：</span><span class="ex-word">${item.full || ''}</span>`;
+    } else {
+      exBox.innerHTML = '';
+    }
   } else {
-    exBox.innerHTML = '';
+    document.getElementById('dictationSub').textContent = item.type==='poem' ? '古诗全文' : '请根据拼音写出汉字';
+    pyEl.textContent = toneMark(item.py) || item.w;
+    pyEl.classList.remove('dictation-reveal');
+    // 生字显示组词拼音（不含汉字，避免直接给出答案）
+    if(item.type==='hanzi'){
+      const words = getHanziExamples(item);
+      exBox.innerHTML = words.length ? `<span class="ex-label">组词：</span>${words.map(w=>`<span class="ex-word">${wordPinyin(w)}</span>`).join('')}` : '';
+    } else {
+      exBox.innerHTML = '';
+    }
   }
 }
 function dictationPlayPause(){
@@ -1795,11 +1817,11 @@ function speakQueue(text, times, cb, rate=0.75){
   }, 200);
 }
 function dictationNext(){
-  if(dictationIndex < dictationQueue.length-1){ dictationIndex++; renderDictationItem(); if(!dictationPaused) dictationSpeakCurrent(); }
+  if(dictationIndex < dictationQueue.length-1){ dictationRevealed = false; dictationIndex++; renderDictationItem(); if(!dictationPaused) dictationSpeakCurrent(); }
   else { dictationStop(); alert('听写完成！'); }
 }
 function dictationPrev(){
-  if(dictationIndex>0){ dictationIndex--; renderDictationItem(); if(!dictationPaused) dictationSpeakCurrent(); }
+  if(dictationIndex>0){ dictationRevealed = false; dictationIndex--; renderDictationItem(); if(!dictationPaused) dictationSpeakCurrent(); }
 }
 function openDictationSettings(){
   openModal('读词设置', `
@@ -1872,6 +1894,8 @@ function addDictationToWrong(){
   entry.grade = currentGrade;
   upsertWrong(entry);
   renderWrong();
+  dictationRevealed = true;
+  renderDictationItem();
   alert('已加入错题本');
 }
 function renderSettingOptions(id, values, current, cb){
