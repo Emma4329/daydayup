@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#FF8A3D">
-<!-- build: daydayup-deploy 2026-08-29T23:05:00+08:00 -->
+<!-- build: daydayup-deploy 2026-08-30T09:57:00+08:00 -->
 <title>天天向上 · 小学生学习平台</title>
 <style>
 :root {
@@ -61,6 +61,10 @@ select,input[type=text],input[type=number]{width:100%;padding:12px;border:2px so
 .fav-btn{background:none;border:none;font-size:22px;line-height:1;cursor:pointer;padding:2px 4px;color:#BDBDBD;}
 .fav-btn.fav{color:#E91E63;}
 .ocr-result{margin-top:6px;font-size:14px;line-height:1.5;color:var(--text);white-space:pre-wrap;word-break:break-word;background:var(--bg);border-radius:10px;padding:8px 10px;}
+.park-points{background:linear-gradient(135deg,#FFF3E6,#FFE9D6);border-radius:16px;padding:18px;text-align:center;margin-bottom:10px;}
+.park-points-num{font-size:40px;font-weight:900;color:var(--primary-dark);line-height:1.1;}
+.park-points-label{font-size:13px;color:var(--text-light);font-weight:700;}
+.park-quiz .quiz-num{margin:6px 0;}
 .empty-tip{text-align:center;color:var(--text-light);font-size:14px;padding:20px;}
 .checkin-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:6px;}
 .day-cell{aspect-ratio:1;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;background:var(--bg);border:1px solid var(--border);}
@@ -362,6 +366,34 @@ select,input[type=text],input[type=number]{width:100%;padding:12px;border:2px so
       <div class="checkin-grid" id="checkinGrid"></div>
     </div>
   </div>
+
+  <!-- 积分乐园 -->
+  <div class="page" id="page-playground">
+    <div class="card">
+      <div class="card-title">🎡 积分乐园</div>
+      <div class="park-points">
+        <div class="park-points-num" id="parkPoints">0</div>
+        <div class="park-points-label">我的积分</div>
+      </div>
+      <div class="row" style="margin-top:6px;">
+        <button class="btn btn-green" style="flex:1;" id="parkSignInBtn" onclick="parkSignIn()">🎁 每日签到 +5</button>
+        <button class="btn btn-purple" style="flex:1;" onclick="parkWheel()">🎰 幸运转盘 -20</button>
+      </div>
+      <div class="hint" id="parkMsg">每日签到领积分，转盘消耗积分抽奖励！</div>
+    </div>
+    <div class="card">
+      <div class="card-title">🧮 口算抢分</div>
+      <div id="parkQuiz" class="park-quiz">
+        <div class="quiz-num" id="parkQuizQ">点击开始</div>
+        <input type="number" id="parkQuizA" placeholder="输入答案" style="margin:8px 0;">
+        <div class="row">
+          <button class="btn btn-green" style="flex:1;" onclick="parkQuizStart()" id="parkQuizBtn">开始</button>
+        </div>
+        <div class="feedback" id="parkQuizFb"></div>
+      </div>
+      <div class="hint">答对一题 +5 积分，连续答对更开心！</div>
+    </div>
+  </div>
 </div>
 
 <div class="bottom-nav" id="bottomNav">
@@ -370,6 +402,7 @@ select,input[type=text],input[type=number]{width:100%;padding:12px;border:2px so
   <div class="nav-item" data-page="english"><span class="ni">🔤</span>英语</div>
   <div class="nav-item" data-page="wrong"><span class="ni">📕</span>错题</div>
   <div class="nav-item" data-page="checkin"><span class="ni">✅</span>打卡</div>
+  <div class="nav-item" data-page="playground"><span class="ni">🎡</span>乐园</div>
 </div>
 
 <!-- 通用弹窗 -->
@@ -393,7 +426,9 @@ const LS = {
   dictationConfig: 'ddup_dictation_cfg_v1',
   dictationHistory: 'ddup_dictation_history_v1',
   chineseGrade: 'ddup_chinese_grade_v1',
-  wrongGrade: 'ddup_wrong_grade_v1'
+  wrongGrade: 'ddup_wrong_grade_v1',
+  points: 'ddup_points_v1',
+  parkSignInDate: 'ddup_park_signin_v1'
 };
 function load(k, def){ try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch(e){ return def; } }
 function save(k, v){ localStorage.setItem(k, JSON.stringify(v)); }
@@ -502,6 +537,7 @@ function switchPage(name){
   document.querySelector(`.bottom-nav .nav-item[data-page="${navName}"]`)?.classList.add('active');
   if(name==='wrong') renderWrong();
   if(name==='checkin') renderCheckin();
+  if(name==='playground') renderPlayground();
   if(name==='chinese') renderChinesePage();
   if(name==='dictation-select') renderDictationTree();
   // 记录语文相关子页面，切换走后仍可恢复；从错题本进入的听写/打印不归语文记忆
@@ -2438,6 +2474,85 @@ function renderCheckin(){
     html+=`<div class="${cls}">${i}</div>`;
   }
   document.getElementById('checkinGrid').innerHTML=html;
+}
+
+// ============ 积分乐园 ============
+let parkPoints = load(LS.points, 0);
+let parkQuizAns = null;
+function parkAddPoints(n){
+  parkPoints += n;
+  save(LS.points, parkPoints);
+  const el = document.getElementById('parkPoints');
+  if(el) el.textContent = parkPoints;
+}
+function renderPlayground(){
+  parkAddPoints(0);
+  const signDate = load(LS.parkSignInDate, '');
+  const btn = document.getElementById('parkSignInBtn');
+  if(btn) btn.disabled = (signDate === todayStr());
+  parkQuizAns = null;
+  const q = document.getElementById('parkQuizQ');
+  const fb = document.getElementById('parkQuizFb');
+  const a = document.getElementById('parkQuizA');
+  const startBtn = document.getElementById('parkQuizBtn');
+  if(q) q.textContent = '点击开始';
+  if(fb){ fb.textContent=''; fb.className='feedback'; }
+  if(a) a.value = '';
+  if(startBtn){ startBtn.textContent='开始'; startBtn.onclick=parkQuizStart; }
+}
+function parkSignIn(){
+  const t = todayStr();
+  if(load(LS.parkSignInDate, '') === t){ alert('今天已经签到啦！'); return; }
+  save(LS.parkSignInDate, t);
+  parkAddPoints(5);
+  const btn = document.getElementById('parkSignInBtn');
+  if(btn) btn.disabled = true;
+  const msg = document.getElementById('parkMsg');
+  if(msg) msg.textContent = '签到成功，+5 积分！';
+}
+function parkWheel(){
+  if(parkPoints < 20){ alert('积分不足，先去签到或口算抢分吧！'); return; }
+  parkAddPoints(-20);
+  const rewards = [5, 10, 20, 30, 50, '再来一次'];
+  const r = rewards[Math.floor(Math.random()*rewards.length)];
+  const msg = document.getElementById('parkMsg');
+  if(r === '再来一次'){
+    if(msg) msg.textContent = '🎉 转中「再来一次」！这次不扣积分，再转一次～';
+    parkAddPoints(20); // 把刚扣的还回去
+    return;
+  }
+  parkAddPoints(r);
+  if(msg) msg.textContent = `🎰 恭喜抽中 +${r} 积分！`;
+}
+function parkQuizStart(){
+  const a = Math.floor(Math.random()*20)+1;
+  const b = Math.floor(Math.random()*20)+1;
+  const op = Math.random()<0.5 ? '+' : '-';
+  let big = Math.max(a,b), small = Math.min(a,b);
+  parkQuizAns = (op==='+') ? a+b : big-small;
+  const q = document.getElementById('parkQuizQ');
+  if(q) q.textContent = (op==='+') ? `${a} + ${b} = ?` : `${big} - ${small} = ?`;
+  const fb = document.getElementById('parkQuizFb');
+  if(fb){ fb.textContent=''; fb.className='feedback'; }
+  const aInput = document.getElementById('parkQuizA');
+  if(aInput) aInput.value = '';
+  const startBtn = document.getElementById('parkQuizBtn');
+  if(startBtn){ startBtn.textContent='提交答案'; startBtn.onclick=parkQuizSubmit; }
+}
+function parkQuizSubmit(){
+  if(parkQuizAns === null) return;
+  const aInput = document.getElementById('parkQuizA');
+  const val = aInput ? Number(aInput.value) : NaN;
+  const fb = document.getElementById('parkQuizFb');
+  if(val === parkQuizAns){
+    parkAddPoints(5);
+    if(fb){ fb.textContent='✓ 答对啦！+5 积分'; fb.className='feedback ok'; }
+  } else {
+    if(fb){ fb.textContent=`✗ 正确答案 ${parkQuizAns}`; fb.className='feedback no'; }
+  }
+  parkQuizAns = null;
+  const startBtn = document.getElementById('parkQuizBtn');
+  if(startBtn){ startBtn.textContent='再来一题'; startBtn.onclick=parkQuizStart; }
 }
 
 // ============ 初始化 ============
