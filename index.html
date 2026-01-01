@@ -66,7 +66,7 @@ select,input[type=text],input[type=number]{width:100%;padding:12px;border:2px so
 .bottom-nav{position:fixed !important;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--border);display:flex;z-index:60;padding:6px 4px;padding-bottom:calc(6px + env(safe-area-inset-bottom));-webkit-transform:translateZ(0);transform:translateZ(0);will-change:transform;}
 .bottom-nav .nav-item{flex:1;text-align:center;padding:6px 2px;color:var(--text-light);font-size:11px;font-weight:700;cursor:pointer;}
 .bottom-nav .nav-item .ni{font-size:22px;display:block;margin-bottom:2px;}
-.bottom-nav .nav-item.active{color:var(--primary);}
+.bottom-nav .nav-item.active{color:#388E3C;background:#E8F5E9;border-radius:12px;box-shadow:inset 0 0 0 1px #C8E6C9;margin:0 2px;}
 .page{display:none;}
 .page.active{display:block;}
 .badge{display:inline-block;background:var(--primary-light);color:var(--primary-dark);border-radius:8px;padding:2px 8px;font-size:11px;font-weight:800;margin-left:6px;}
@@ -451,7 +451,7 @@ let dictationIndex = 0;
 let dictationPaused = false;
 let dictationTimer = null;
 let dictationPlaying = false;
-let dictationAbort = false; // 点击暂停时中止当前 speakQueue 递归
+let speechGen = 0; // 朗读代数,暂停时递增以中止旧 speakQueue 递归
 let dictationConfig = load(LS.dictationConfig, { repeat: 2, interval: 5000, rate: 0.75 });
 let lastChineseSubPage = 'chinese'; // 'chinese' | 'dictation-select' | 'dictation'
 let HANZI_PY_MAP = {}; // 生字→拼音映射,用于组词显示拼音
@@ -997,7 +997,7 @@ function dictationPlayPause(){
 }
 function dictationStop(){
   dictationPlaying = false;
-  dictationAbort = true;
+  speechGen++;
   speechSynthesis.cancel();
   clearTimeout(dictationTimer);
   document.getElementById('playIcon').textContent = '▶';
@@ -1580,12 +1580,13 @@ function dictationSpeakCurrent(){
   }, dictationConfig.rate || 0.75);
 }
 function speakQueue(text, times, cb, rate=0.75){
-  if(dictationAbort){ dictationAbort=false; return; }
+  const gen = ++speechGen;
   if(times<=0){ cb(); return; }
   speak(text, 'zh-CN', rate);
   let check = setInterval(()=>{
     if(!speechSynthesis.speaking){
       clearInterval(check);
+      if(speechGen !== gen) return; // 已被暂停/切换,丢弃旧递归
       if(times>1){
         setTimeout(()=>speakQueue(text, times-1, cb, rate), 500);
       } else {
@@ -2087,6 +2088,7 @@ function dictateSelectedWrong(){
   if(items.length===0){ alert('请先选择生字或词语'); return; }
   wrongBookReturn = true;
   lastWrongPage = 'dictation';
+  lastChineseSubPage = 'chinese'; // 错题本的听写不归语文记忆,点语文回首页
   dictationQueue = items.map(w=>{
     const parsed = (!w.type || !w.type.startsWith('chinese')) ? parseOldChineseWrong(w) : null;
     if(parsed) return parsed;
@@ -2107,6 +2109,7 @@ function printSelectedWrong(){
   if(items.length===0){ alert('请先选择生字或词语'); return; }
   wrongBookReturn = true;
   lastWrongPage = 'print';
+  lastChineseSubPage = 'chinese'; // 错题本的打印不归语文记忆,点语文回首页
   const queueItems = items.map(w=>{
     const parsed = (!w.type || !w.type.startsWith('chinese')) ? parseOldChineseWrong(w) : null;
     if(parsed) return parsed;
