@@ -219,6 +219,10 @@ select,input[type=text],input[type=number]{width:100%;padding:12px;border:2px so
         <div class="dictation-py" id="dictationPy">—</div>
         <div class="dictation-hint" id="dictationProgress">1 / 1</div>
       </div>
+      <div class="row" style="margin-top:16px;">
+        <button class="btn btn-outline" style="flex:1;" onclick="dictationBack()">← 返回</button>
+        <button class="btn" style="flex:1;" onclick="addDictationToWrong()">➕ 加入错题本</button>
+      </div>
       <div class="dictation-controls">
         <button class="control-btn" onclick="dictationAutoToggle()">
           <span class="icon" id="autoIcon">▶</span><span>自动切换</span>
@@ -711,6 +715,31 @@ function openDictationSettings(){
   `, '确定', ()=>{ closeModal(); });
   renderSettingOptions('repeatGroup', [1,2,3], dictationConfig.repeat, v=>{dictationConfig.repeat=v; save(LS.dictationConfig, dictationConfig);});
   renderSettingOptions('intervalGroup', [1000,3000,5000,7000,9000], dictationConfig.interval, v=>{dictationConfig.interval=v; save(LS.dictationConfig, dictationConfig);});
+}
+function dictationBack(){
+  dictationStop();
+  switchPage('dictation-select');
+}
+function addDictationToWrong(){
+  const item = dictationQueue[dictationIndex];
+  if(!item) return;
+  const arr = load(LS.wrong, []);
+  let text, ans;
+  if(item.type==='poem'){
+    text = `古诗：${item.w}`;
+    ans = item.full;
+  } else if(item.type==='word'){
+    text = `听写词语：${item.py || item.w}`;
+    ans = item.w;
+  } else {
+    text = `听写生字：${item.py || item.w}`;
+    ans = item.w;
+  }
+  arr.unshift({text, ans, ts: Date.now()});
+  if(arr.length>200) arr.length=200;
+  save(LS.wrong, arr);
+  renderWrong();
+  alert('已加入错题本');
 }
 function renderSettingOptions(id, values, current, cb){
   const labels = {1000:'1秒',3000:'3秒',5000:'5秒',7000:'7秒',9000:'9秒'};
