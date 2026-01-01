@@ -158,6 +158,19 @@ select,input[type=text],input[type=number]{width:100%;padding:12px;border:2px so
 .control-btn{background:none;border:none;font-size:13px;font-weight:700;color:var(--text-light);display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;}
 .control-btn .icon{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;background:var(--bg);border:1px solid var(--border);}
 .control-btn .icon.big{width:72px;height:72px;font-size:32px;background:var(--primary);color:#fff;border:none;}
+/* 听写结束核对弹窗 */
+.review-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:10px;}
+.review-title{font-weight:700;color:var(--text);font-size:15px;}
+.review-list{max-height:55vh;overflow-y:auto;-webkit-overflow-scrolling:touch;border-top:1px solid var(--border);border-bottom:1px solid var(--border);}
+.review-row{display:flex;align-items:flex-start;gap:10px;padding:12px 4px;border-bottom:1px solid var(--border);}
+.review-row:last-child{border-bottom:none;}
+.review-row.review-red{background:#FFEBEE;color:#C62828;border-radius:10px;}
+.review-content{flex:1;min-width:0;}
+.review-word{font-size:18px;font-weight:800;line-height:1.4;}
+.review-py{font-size:13px;color:var(--text-light);font-weight:400;margin-left:8px;}
+.review-ex{font-size:13px;color:var(--text-light);margin-top:4px;line-height:1.4;}
+.review-row.review-red .review-ex{color:#E57373;}
+.review-check{margin-top:3px;width:18px;height:18px;flex-shrink:0;accent-color:var(--primary);}
 .setting-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border);}
 .setting-row:last-child{border-bottom:none;}
 .option-group{display:flex;gap:8px;flex-wrap:wrap;}
@@ -612,6 +625,7 @@ let dictationPlaying = false;
 let dictationRevealed = false; // 加入错题本后显示当前词答案
 let speechGen = 0; // 朗读代数,暂停时递增以中止旧 speakQueue 递归
 let dictationConfig = load(LS.dictationConfig, { repeat: 2, interval: 5000, rate: 0.75 });
+let dictationSessionWrong = new Set(); // 本次听写中已加入错题本的词
 let lastChineseSubPage = 'chinese'; // 'chinese' | 'dictation-select' | 'dictation'
 let HANZI_PY_MAP = {}; // 生字→拼音映射,用于组词显示拼音
 
@@ -838,20 +852,23 @@ if('speechSynthesis' in window){ speechSynthesis.onvoiceschanged = _loadVoices; 
 function getMandarinVoice(){
   if(!_voices || !_voices.length) _loadVoices();
   if(!_voices || !_voices.length) return null;
-  // 仅在普通话(zh-CN, 排除粤语/港/台/澳/繁体)范围内挑选
-  const bad = ['yue','zh-hk','zh-tw','zh-mo','zh-hant'];
-  const isZhCN = x => { const l=(x.lang||'').toLowerCase(); return l==='zh-cn' || (l.startsWith('zh-cn') && !bad.some(b=>l.indexOf(b)>=0)); };
+  // 严格排除粤语/港/台/澳/繁体；同时在名称/URI 里再次排除粤语标记（防止 lang 标错）
+  const badLang = ['yue','zh-hk','zh-tw','zh-mo','zh-hant'];
+  const cantonName = ['yue','cantonese','cantones','粵','粤','香港','hongkong','廣東','广东'];
+  const isBadName = v => { const s=((v.name||'')+' '+(v.voiceURI||'')).toLowerCase(); return cantonName.some(k=>s.indexOf(k)>=0); };
+  const isZhCN = x => { const l=(x.lang||'').toLowerCase(); return (l==='zh-cn' || l.startsWith('zh-cn')) && !badLang.some(b=>l.indexOf(b)>=0) && !isBadName(x); };
   const cnVoices = _voices.filter(isZhCN);
   if(cnVoices.length){
-    // 女声优先：按名称/voiceURI 命中女声关键词打分，分数高者优先
-    const femaleKW = ['tingting','ting-ting','huihui','yaoyao','xiaoxiao','xiaoyi','yushu','yu-shu','女','female','woman','普通话（中国大陆）','普通话 (中国大陆)','zhilin','xiaobei','yunxi','xiaomeng','ruoxi','lily','zira','susan','xiao','yue','yan','mei'];
-    const maleKW = ['kangkang','yunyang','男','male','云扬','康康','david','mark'];
-    const score = v => { const s=((v.name||'')+' '+(v.voiceURI||'')).toLowerCase(); let n=0; if(femaleKW.some(k=>s.indexOf(k)>=0)) n+=2; if(maleKW.some(k=>s.indexOf(k)>=0)) n-=2; return n; };
+    // 优先已知的普通话女声，再按通用女声关键词打分
+    const preferred = ['ting-ting','tingting','huihui','yaoyao','xiaoxiao','xiaoyi','yushu','yu-shu','普通话（中国大陆）','普通话 (中国大陆)','google 普通话'];
+    const femaleKW = ['女','female','woman','lily','zira','susan','tingting','ting-ting','huihui','yaoyao','xiaoxiao','xiaoyi','yushu','yu-shu','zhilin','ruoxi','xiaomeng','yunxi'];
+    const maleKW = ['kangkang','yunyang','男','male','云扬','康康','david','mark','xiaobei'];
+    const score = v => { const s=((v.name||'')+' '+(v.voiceURI||'')).toLowerCase(); let n=0; if(preferred.some(k=>s.indexOf(k)>=0)) n+=4; if(femaleKW.some(k=>s.indexOf(k)>=0)) n+=2; if(maleKW.some(k=>s.indexOf(k)>=0)) n-=2; return n; };
     cnVoices.sort((a,b)=>score(b)-score(a));
     return cnVoices[0];
   }
-  // 退而求其次：任何 zh- 开头（排除粤语/港/台/澳/繁体）
-  const v = _voices.find(x=>{ const l=(x.lang||'').toLowerCase(); return l.startsWith('zh') && !bad.some(b=>l.indexOf(b)>=0); });
+  // 退而求其次：任何 zh- 开头（排除粤语/港/台/澳/繁体，且名字不含粤语标记）
+  const v = _voices.find(x=>{ const l=(x.lang||'').toLowerCase(); return l.startsWith('zh') && !badLang.some(b=>l.indexOf(b)>=0) && !isBadName(x); });
   return v || null;
 }
 function speakWord(text){
@@ -1219,6 +1236,7 @@ function replayDictationHistory(i){
   dictationPaused = false;
   dictationPlaying = false;
   dictationRevealed = false;
+  dictationSessionWrong = new Set();
   clearTimeout(dictationTimer);
   wrongBookReturn = false;
   lastWrongPage = 'wrong';
@@ -1252,6 +1270,7 @@ function startDictation(){
   dictationPaused = false;
   dictationPlaying = false;
   dictationRevealed = false;
+  dictationSessionWrong = new Set();
   clearTimeout(dictationTimer);
   switchPage('dictation');
   renderDictationItem();
@@ -1912,7 +1931,7 @@ function speakQueue(text, times, cb, rate=0.75){
 }
 function dictationNext(){
   if(dictationIndex < dictationQueue.length-1){ dictationRevealed = false; dictationPaused = false; dictationIndex++; renderDictationItem(); if(!dictationPaused) dictationSpeakCurrent(); }
-  else { dictationStop(); alert('听写完成！'); }
+  else { dictationStop(); openDictationReview(); }
 }
 function dictationPrev(){
   if(dictationIndex>0){ dictationRevealed = false; dictationPaused = false; dictationIndex--; renderDictationItem(); if(!dictationPaused) dictationSpeakCurrent(); }
@@ -1988,6 +2007,7 @@ function addDictationToWrong(){
   else entry = {type:'chinese-hanzi', w:item.w, py:item.py, e1:item.e1, e2:item.e2};
   entry.grade = currentGrade;
   upsertWrong(entry);
+  dictationSessionWrong.add(item.w);
   renderWrong();
   dictationRevealed = true;
   renderDictationItem();
@@ -1995,15 +2015,82 @@ function addDictationToWrong(){
   dictationPaused = true;
   alert('已加入错题本');
 }
+function addReviewItemToWrong(item){
+  if(!item) return;
+  let entry;
+  if(item.type==='poem') entry = {type:'chinese-poem', w:item.w, full:item.full};
+  else if(item.type==='word') entry = {type:'chinese-word', w:item.w, py:item.py || getPinyin(item.w)};
+  else entry = {type:'chinese-hanzi', w:item.w, py:item.py || getPinyin(item.w), e1:item.e1, e2:item.e2};
+  entry.grade = currentGrade;
+  upsertWrong(entry);
+  dictationSessionWrong.add(item.w);
+}
+function openDictationReview(){
+  const selected = new Set();
+  let selecting = false;
+  const buildReviewHTML = () => {
+    const top = `<div class="review-top">
+      <span class="review-title">本次共 ${dictationQueue.length} 项 · 已加入错题本 ${dictationSessionWrong.size} 项</span>
+      <button class="btn btn-sm ${selecting?'btn-green':'btn-outline'}" id="reviewToggleBtn">${selecting?'确认加入错题本':'加入错题本'}</button>
+    </div>`;
+    const list = dictationQueue.map((item,i)=>{
+      const isRed = dictationSessionWrong.has(item.w);
+      const check = selecting ? `<input type="checkbox" class="review-check" data-idx="${i}" ${selected.has(i)?'checked':''}>` : '';
+      let content = '';
+      if(item.type==='hanzi'){
+        const words = getHanziExamples(item);
+        content = `<div class="review-word">${item.w}<span class="review-py">${item.py || getPinyin(item.w) || ''}</span></div>
+                   <div class="review-ex">组词：${words.join('、')}</div>`;
+      } else if(item.type==='word'){
+        content = `<div class="review-word">${item.w}<span class="review-py">${item.py || getPinyin(item.w) || ''}</span></div>`;
+      } else if(item.type==='poem'){
+        content = `<div class="review-word">${item.w}</div><div class="review-ex">${item.full || ''}</div>`;
+      } else {
+        content = `<div class="review-word">${item.w}<span class="review-py">${item.py || getPinyin(item.w) || ''}</span></div>`;
+      }
+      return `<div class="review-row ${isRed?'review-red':''}">${check}<div class="review-content">${content}</div></div>`;
+    }).join('');
+    return `<div>${top}<div class="review-list">${list}</div></div>`;
+  };
+  openModal('听写核对', buildReviewHTML(), '关闭', ()=>{ closeModal(); });
+  const bindToggle = () => {
+    const btn = document.getElementById('reviewToggleBtn');
+    if(btn) btn.onclick = () => {
+      if(selecting){
+        if(selected.size > 0){
+          selected.forEach(i => addReviewItemToWrong(dictationQueue[i]));
+          renderWrong();
+        }
+        selecting = false; selected.clear();
+      } else {
+        selecting = true;
+      }
+      document.getElementById('modalBody').innerHTML = buildReviewHTML();
+      bindToggle();
+      bindChecks();
+    };
+  };
+  const bindChecks = () => {
+    document.querySelectorAll('.review-check').forEach(cb => {
+      cb.onchange = () => {
+        const i = parseInt(cb.dataset.idx, 10);
+        if(cb.checked) selected.add(i); else selected.delete(i);
+      };
+    });
+  };
+  bindToggle();
+  bindChecks();
+}
 function renderSettingOptions(id, values, current, cb){
   const labels = {3000:'3秒',5000:'5秒',8000:'8秒',12000:'12秒',0.5:'0.5x',0.75:'0.75x',1:'1.0x'};
   document.getElementById(id).innerHTML = values.map(v=>`<span class="option-btn ${v===current?'active':''}" onclick="setOption('${id}',${v},this)">${labels[v]||v}</span>`).join('');
-  window._settingCb = cb;
+  if(!window._settingCbs) window._settingCbs = {};
+  window._settingCbs[id] = cb;
 }
 function setOption(id, v, el){
   document.querySelectorAll('#'+id+' .option-btn').forEach(b=>b.classList.remove('active'));
   el.classList.add('active');
-  window._settingCb(v);
+  if(window._settingCbs && window._settingCbs[id]) window._settingCbs[id](v);
 }
 
 // ============ 去打印 ============
@@ -2608,6 +2695,7 @@ function dictateSelectedWrong(){
   dictationPaused = false;
   dictationPlaying = false;
   dictationRevealed = false;
+  dictationSessionWrong = new Set();
   clearTimeout(dictationTimer);
   switchPage('dictation');
   renderDictationItem();
