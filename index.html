@@ -130,6 +130,9 @@ select,input[type=text],input[type=number]{width:100%;padding:12px;border:2px so
 .tianzi-cell{width:88px;display:flex;flex-direction:column;align-items:center;background:#fff;}
 .tianzi-cell.word{align-items:center;}
 .tianzi-cell.word .tz-grid{width:86px;height:86px;}
+.word-group{display:flex;flex-direction:column;align-items:center;margin:0 10px 12px 0;}
+.word-pinyin{font-size:11px;color:#388E3C;text-align:center;margin-bottom:2px;line-height:1.25;}
+.word-grids{display:flex;gap:6px;}
 .tianzi-cell .tz-pinyin{width:100%;min-height:22px;line-height:1.25;font-size:11px;color:#388E3C;text-align:center;font-weight:500;padding:3px 2px;}
 .tianzi-cell .tz-grid{width:86px;height:86px;border:1.5px solid #C8E6C9;border-radius:6px;position:relative;background:#fff;overflow:hidden;}
 .tianzi-cell .tz-grid::before{content:'';position:absolute;top:50%;left:0;right:0;height:1px;background:linear-gradient(90deg,#DCEDC8 50%,transparent 50%);background-size:8px 1px;transform:translateY(-50%);}
@@ -1059,7 +1062,7 @@ function renderPrintSheet(items, title){
   document.getElementById('printSheet').innerHTML = `
     <div class="print-title">${title || getGradeName(currentGrade)+' 字词表'}</div>
     ${hanzi.length?`<div class="print-section"><h4>生字（${hanzi.length}个）</h4><div class="print-grid">${hanzi.map(h=>`<div class="tianzi-cell"><div class="tz-pinyin">${toneMark(h.py)||''}</div><div class="tz-grid"></div></div>`).join('')}</div></div>`:''}
-    ${words.length?`<div class="print-section"><h4>词语（${words.length}个）</h4><div class="print-grid">${words.map(w=>`<div class="tianzi-cell word"><div class="tz-pinyin">${toneMark(w.py)||''}</div><div class="tz-grid"></div></div>`).join('')}</div></div>`:''}
+    ${words.length?`<div class="print-section"><h4>词语（${words.length}个）</h4><div class="print-grid">${words.map(w=>{const py=toneMark(w.py)||'';return `<div class="word-group"><div class="word-pinyin">${py}</div><div class="word-grids">${w.w.split('').map(()=>`<div class="tianzi-cell word"><div class="tz-grid"></div></div>`).join('')}</div></div>`;}).join('')}</div></div>`:''}
     ${poems.length?`<div class="print-section"><h4>古诗（${poems.length}首）</h4>${poems.map(p=>`<p style="margin:8px 0;font-size:15px;"><b>${p.w}</b>（${p.author||'未知'}）<br>${p.full}</p>`).join('')}</div>`:''}
   `;
 }
