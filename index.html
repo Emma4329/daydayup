@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#FF8A3D">
-<!-- build: daydayup-deploy 2026-08-29T19:37:00+08:00 -->
+<!-- build: daydayup-deploy 2026-08-29T19:47:00+08:00 -->
 <title>天天向上 · 小学生学习平台</title>
 <style>
 :root {
@@ -330,6 +330,11 @@ select,input[type=text],input[type=number]{width:100%;padding:12px;border:2px so
         <span class="chip wrong-tab-chip" data-wtab="math" onclick="switchWrongTab('math')">数学</span>
         <span class="chip wrong-tab-chip" data-wtab="english" onclick="switchWrongTab('english')">英语</span>
       </div>
+      <div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-bottom:12px;">
+        <span style="font-size:12px;color:var(--text-light);font-weight:700;">排序</span>
+        <span class="chip wrong-sort-chip active" id="wrongSortTime" style="font-size:12px;padding:6px 12px;" onclick="switchWrongSort('time')">时间</span>
+        <span class="chip wrong-sort-chip" id="wrongSortCount" style="font-size:12px;padding:6px 12px;" onclick="switchWrongSort('count')">次数</span>
+      </div>
       <div class="row" id="wrongActions" style="margin-bottom:12px;display:none;">
         <button class="btn btn-green" style="flex:1;" onclick="dictateSelectedWrong()">🎧 去听写</button>
         <button class="btn btn-blue" style="flex:1;" onclick="printSelectedWrong()">🖨️ 去打印</button>
@@ -446,6 +451,7 @@ let wrongBookReturn = false; // 从错题本进入听写/打印后，返回时�
 let lastWrongPage = 'wrong'; // 'wrong' | 'dictation' | 'print'
 let dictationTypes = { hanzi:true, words:true, poem:false };
 let wrongTab = 'chinese';
+let wrongSort = 'time'; // 'time' | 'count'
 let printSelections = { units:[], lessons:[], poems:[], hanzi:[], words:[], poemFull:[] };
 let printExpanded = [];
 let printTypes = { hanzi:true, words:true, poem:false };
@@ -1702,17 +1708,57 @@ function dictationBack(){
   if(wrongBookReturn){ switchPage('wrong'); wrongBookReturn=false; lastWrongPage='wrong'; return; }
   switchPage('dictation-select');
 }
+function wrongKey(w){
+  if(w.type==='math') return (w.type||'')+'|'+w.text+'|'+(w.ans||'');
+  return (w.type||'')+'|'+(w.w||'')+'|'+(w.py||'');
+}
+function migrateWrongData(){
+  const all = load(LS.wrong, []);
+  if(all.length === 0) return;
+  const map = new Map();
+  let hasDup = false;
+  all.forEach(w=>{
+    if(!w.count) w.count = 1;
+    const key = wrongKey(w);
+    if(map.has(key)){
+      hasDup = true;
+      const existing = map.get(key);
+      existing.count += w.count;
+      existing.ts = Math.max(existing.ts, w.ts);
+    } else {
+      map.set(key, {...w});
+    }
+  });
+  if(!hasDup) return;
+  const next = Array.from(map.values()).sort((a,b)=> b.ts - a.ts);
+  save(LS.wrong, next);
+}
+function upsertWrong(entry){
+  const arr = load(LS.wrong, []);
+  entry.ts = Date.now();
+  entry.count = 1;
+  const key = wrongKey(entry);
+  const idx = arr.findIndex(w => wrongKey(w) === key);
+  if(idx >= 0){
+    arr[idx].count = (arr[idx].count || 1) + 1;
+    arr[idx].ts = entry.ts;
+    // 把刚更新的移到最前，便于按时间排序
+    const item = arr.splice(idx, 1)[0];
+    arr.unshift(item);
+  } else {
+    arr.unshift(entry);
+  }
+  if(arr.length > 200) arr.length = 200;
+  save(LS.wrong, arr);
+}
 function addDictationToWrong(){
   const item = dictationQueue[dictationIndex];
   if(!item) return;
-  const arr = load(LS.wrong, []);
   let entry;
-  if(item.type==='poem') entry = {type:'chinese-poem', w:item.w, full:item.full, ts:Date.now()};
-  else if(item.type==='word') entry = {type:'chinese-word', w:item.w, py:item.py, ts:Date.now()};
-  else entry = {type:'chinese-hanzi', w:item.w, py:item.py, e1:item.e1, e2:item.e2, ts:Date.now()};
-  arr.unshift(entry);
-  if(arr.length>200) arr.length=200;
-  save(LS.wrong, arr);
+  if(item.type==='poem') entry = {type:'chinese-poem', w:item.w, full:item.full};
+  else if(item.type==='word') entry = {type:'chinese-word', w:item.w, py:item.py};
+  else entry = {type:'chinese-hanzi', w:item.w, py:item.py, e1:item.e1, e2:item.e2};
+  upsertWrong(entry);
   renderWrong();
   alert('已加入错题本');
 }
@@ -2057,10 +2103,7 @@ function endQuiz(manual){
 }
 document.getElementById('quizAns').addEventListener('keydown',e=>{ if(e.key==='Enter') submitAnswer(); });
 function addWrong(q){
-  const arr=load(LS.wrong,[]);
-  arr.unshift({type:'math', text:q.text, ans:q.ans, ts:Date.now()});
-  if(arr.length>200) arr.length=200;
-  save(LS.wrong,arr);
+  upsertWrong({type:'math', text:q.text, ans:q.ans});
 }
 function isChineseWrong(w){
   if(w.type && w.type.startsWith('chinese')) return true;
@@ -2079,23 +2122,44 @@ function parseOldChineseWrong(w){
   return {type:'hanzi', w:word, py:py, e1:w.e1||'', e2:w.e2||''};
 }
 function renderWrong(){
-  const all=load(LS.wrong,[]);
+  let all=load(LS.wrong,[]);
+  // 兼容旧数据：没有 count 的默认为 1
+  all.forEach(w=>{ if(!w.count) w.count = 1; });
   const filters = {
     chinese: w => isChineseWrong(w),
     math: w => w.type === 'math',
     english: w => w.type === 'english'
   };
-  // 去重：按内容去重，保留最新的一条
-  const seen = new Set();
-  const arr = [];
+  // 合并同一内容的错题，累计加入次数，保留最新时间
+  const keyMap = new Map();
   all.forEach((w,i)=>{
     if(!(filters[wrongTab]||filters.math)(w)) return;
-    const key = (w.type||'')+'|'+(w.w||'')+'|'+(w.py||'');
-    if(seen.has(key)) return;
-    seen.add(key);
-    arr.push({w,i});
+    const key = wrongKey(w);
+    if(keyMap.has(key)){
+      const existing = keyMap.get(key);
+      existing.w.count += w.count;
+      if(w.ts > existing.w.ts){
+        existing.w.ts = w.ts;
+        existing.i = i;
+      }
+    } else {
+      keyMap.set(key, {w,i});
+    }
   });
+  let arr = Array.from(keyMap.values());
+  // 排序
+  if(wrongSort === 'count'){
+    arr.sort((a,b)=>{
+      if(b.w.count !== a.w.count) return b.w.count - a.w.count;
+      return b.w.ts - a.w.ts;
+    });
+  } else {
+    arr.sort((a,b)=> b.w.ts - a.w.ts);
+  }
   document.getElementById('wrongCount').textContent=arr.length;
+  // 更新排序按钮状态
+  document.getElementById('wrongSortTime')?.classList.toggle('active', wrongSort==='time');
+  document.getElementById('wrongSortCount')?.classList.toggle('active', wrongSort==='count');
   const box=document.getElementById('wrongList');
   const actions=document.getElementById('wrongActions');
   if(arr.length===0){
@@ -2114,6 +2178,7 @@ function renderWrong(){
     box.innerHTML = `<div class="word-grid">${arr.map(({w,i})=>`
       <div class="word-tag" style="position:relative;padding-top:22px;min-width:72px;text-align:center;cursor:pointer;" onclick="event.stopPropagation();">
         <input type="checkbox" ${wrongSelections.has(i)?'checked':''} style="position:absolute;top:6px;left:6px;width:18px;height:18px;cursor:pointer;" onchange="event.stopPropagation();toggleWrongSelect(${i})">
+        ${w.count > 1 ? `<span class="wrong-count" style="position:absolute;top:4px;right:6px;background:var(--red);color:#fff;border-radius:8px;padding:1px 6px;font-size:11px;font-weight:800;line-height:1;">${w.count}</span>` : ''}
         <div class="py" style="font-size:12px;margin-bottom:2px;">${toneMark(w.py)||w.w}</div>
         <div style="font-size:18px;font-weight:800;">${w.w}</div>
       </div>
@@ -2122,7 +2187,7 @@ function renderWrong(){
     box.innerHTML=arr.map(({w,i})=>`
       <div class="list-item" style="align-items:flex-start;">
         <div>
-          <div class="name">${wrongDisplayText(w)}</div>
+          <div class="name">${wrongDisplayText(w)}${w.count > 1 ? ` <span style="display:inline-block;background:var(--red);color:#fff;border-radius:8px;padding:1px 6px;font-size:11px;font-weight:800;">${w.count}</span>` : ''}</div>
           <div class="meta">${wrongDisplayAns(w)}</div>
         </div>
       </div>
@@ -2133,6 +2198,10 @@ function switchWrongTab(tab){
   wrongTab = tab;
   wrongSelections.clear();
   document.querySelectorAll('.wrong-tab-chip').forEach(c=>c.classList.toggle('active', c.dataset.wtab===tab));
+  renderWrong();
+}
+function switchWrongSort(sort){
+  wrongSort = sort;
   renderWrong();
 }
 function wrongDisplayText(w){
@@ -2262,6 +2331,7 @@ function renderCheckin(){
 // ============ 初始化 ============
 function init(){
   updateTopDate();
+  migrateWrongData();
   initGradeSelect();
   buildHanziPyMap();
   renderChinesePage();
