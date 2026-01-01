@@ -330,6 +330,7 @@ const LS = {
   wrong: 'ddup_wrong_v1',
   checkin: 'ddup_checkin_v1',
   chinese: 'ddup_chinese_v1',
+  chineseVer: 'ddup_chinese_ver_v1',
   dictationConfig: 'ddup_dictation_cfg_v1',
   dictationHistory: 'ddup_dictation_history_v1'
 };
@@ -368,15 +369,21 @@ const DEFAULT_CHINESE = {"3-1":{"name":"三年级上册","units":[{"name":"第�
 const GRADE_OPTIONS = [["1-1", "一年级上册"], ["1-2", "一年级下册"], ["2-1", "二年级上册"], ["2-2", "二年级下册"], ["3-1", "三年级上册"], ["3-2", "三年级下册"], ["4-1", "四年级上册"], ["4-2", "四年级下册"], ["5-1", "五年级上册"], ["5-2", "五年级下册"], ["6-1", "六年级上册"], ["6-2", "六年级下册"]];
 
 let CHINESE = load(LS.chinese, null);
-if(!CHINESE){ CHINESE = JSON.parse(JSON.stringify(DEFAULT_CHINESE)); save(LS.chinese, CHINESE); }
+const DATA_VERSION = 2; // 教材内容更新时递增，自动覆盖本地旧缓存
+const savedVer = load(LS.chineseVer, 0);
+if(!CHINESE || savedVer < DATA_VERSION){
+  CHINESE = JSON.parse(JSON.stringify(DEFAULT_CHINESE));
+  save(LS.chinese, CHINESE);
+  save(LS.chineseVer, DATA_VERSION);
+}
 else {
-  // 默认教材数据更新时（单元数变多），自动同步到本地，避免用户一直看到旧缓存
+  // 旧版单元数检测（兼容）
   let needUpdate = false;
   for(const gradeId in DEFAULT_CHINESE){
     if(!CHINESE[gradeId]){ needUpdate = true; break; }
     if(DEFAULT_CHINESE[gradeId].units.length !== (CHINESE[gradeId].units||[]).length){ needUpdate = true; break; }
   }
-  if(needUpdate){ CHINESE = JSON.parse(JSON.stringify(DEFAULT_CHINESE)); save(LS.chinese, CHINESE); }
+  if(needUpdate){ CHINESE = JSON.parse(JSON.stringify(DEFAULT_CHINESE)); save(LS.chinese, CHINESE); save(LS.chineseVer, DATA_VERSION); }
 }
 let currentGrade = '3-1';
 let editMode = false;
