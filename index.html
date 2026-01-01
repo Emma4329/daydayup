@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#FF8A3D">
-<!-- build: daydayup-deploy 2026-08-30T10:15:00+08:00 -->
+<!-- build: daydayup-deploy 2026-08-30T10:30:00+08:00 -->
 <title>天天向上 · 小学生学习平台</title>
 <style>
 :root {
@@ -70,6 +70,23 @@ select,input[type=text],input[type=number]{width:100%;padding:12px;border:2px so
 .task-name{font-size:15px;font-weight:700;flex:1;min-width:0;}
 .task-btn{border:none;border-radius:999px;padding:8px 14px;font-size:13px;font-weight:800;cursor:pointer;background:var(--bg);color:var(--text-light);flex-shrink:0;white-space:nowrap;}
 .task-btn.done{background:var(--green);color:#fff;}
+.island-overlay{position:fixed;inset:0;z-index:200;background:linear-gradient(180deg,#aee3ff 0%,#e8f7ff 70%);overflow:hidden;}
+.island-canvas{position:absolute;inset:0;}
+.island-topbar{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:calc(12px + env(safe-area-inset-top)) 16px 12px;z-index:210;}
+.island-topbar #islandStars{background:#fff;border-radius:999px;padding:6px 14px;font-weight:800;font-size:14px;box-shadow:0 2px 6px rgba(0,0,0,.12);}
+.island-close{border:none;background:#fff;border-radius:999px;padding:6px 14px;font-weight:800;font-size:14px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.12);}
+.island-shop-btn{position:absolute;bottom:calc(24px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);z-index:210;border:none;background:var(--primary);color:#fff;border-radius:999px;padding:12px 26px;font-weight:800;font-size:16px;cursor:pointer;box-shadow:0 4px 14px rgba(255,138,61,.5);}
+.island-shop{position:absolute;bottom:0;left:0;right:0;background:#fff;border-radius:22px 22px 0 0;padding:18px 16px calc(20px + env(safe-area-inset-bottom));z-index:220;max-height:72vh;overflow:auto;box-shadow:0 -6px 20px rgba(0,0,0,.12);}
+.island-shop-title{font-size:17px;font-weight:800;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;}
+.island-shop-list{display:flex;flex-direction:column;}
+.island-shop-item{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);}
+.island-shop-swatch{width:30px;height:30px;border-radius:8px;border:1px solid #ccc;flex-shrink:0;}
+.island-shop-name{flex:1;font-weight:700;font-size:14px;}
+.island-shop-buy{border:none;border-radius:999px;padding:7px 14px;font-weight:800;font-size:13px;cursor:pointer;flex-shrink:0;}
+.island-shop-buy.owned{background:#E8F5E9;color:#388E3C;}
+.island-shop-buy.buyable{background:var(--primary);color:#fff;}
+.island-shop-buy.cant{background:#eee;color:#aaa;}
+.island-shop-close{margin-top:14px;width:100%;border:none;background:#f5f0e8;color:var(--text-light);border-radius:12px;padding:12px;font-weight:800;cursor:pointer;}
 .empty-tip{text-align:center;color:var(--text-light);font-size:14px;padding:20px;}
 .checkin-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:6px;}
 .day-cell{aspect-ratio:1;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;background:var(--bg);border:1px solid var(--border);}
@@ -389,6 +406,9 @@ select,input[type=text],input[type=number]{width:100%;padding:12px;border:2px so
         <button class="btn btn-purple" style="flex:1;" onclick="parkWheel()">🎰 幸运转盘 -20⭐</button>
       </div>
       <div class="hint" id="parkMsg">每日签到领星星，转盘消耗星星抽奖励！</div>
+      <div class="row" style="margin-top:14px;">
+        <button class="btn btn-outline" style="flex:1;" onclick="enterIsland()">🏝️ 进入 3D 小岛换装</button>
+      </div>
     </div>
     <div class="card">
       <div class="card-title">🧮 口算抢分</div>
@@ -412,6 +432,21 @@ select,input[type=text],input[type=number]{width:100%;padding:12px;border:2px so
   <div class="nav-item" data-page="wrong"><span class="ni">📕</span>错题</div>
   <div class="nav-item" data-page="checkin"><span class="ni">✅</span>打卡</div>
   <div class="nav-item" data-page="playground"><span class="ni">🎡</span>乐园</div>
+</div>
+
+<!-- 3D 小岛 -->
+<div class="island-overlay" id="islandOverlay" style="display:none;">
+  <div class="island-canvas" id="islandCanvas"></div>
+  <div class="island-topbar">
+    <span id="islandStars">⭐ 0</span>
+    <button class="island-close" onclick="exitIsland()">✕ 退出</button>
+  </div>
+  <button class="island-shop-btn" onclick="openIslandShop()">🛍️ 衣橱商店</button>
+  <div class="island-shop" id="islandShop" style="display:none;">
+    <div class="island-shop-title">🛍️ 衣橱商店 <span id="shopStars">⭐0</span></div>
+    <div class="island-shop-list" id="islandShopList"></div>
+    <button class="island-shop-close" onclick="closeIslandShop()">收起</button>
+  </div>
 </div>
 
 <!-- 通用弹窗 -->
@@ -438,7 +473,9 @@ const LS = {
   wrongGrade: 'ddup_wrong_grade_v1',
   points: 'ddup_points_v1',
   parkSignInDate: 'ddup_park_signin_v1',
-  checkinTasks: 'ddup_checkin_tasks_v1'
+  checkinTasks: 'ddup_checkin_tasks_v1',
+  ownedOutfits: 'ddup_owned_outfits_v1',
+  currentOutfit: 'ddup_current_outfit_v1'
 };
 function load(k, def){ try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch(e){ return def; } }
 function save(k, v){ localStorage.setItem(k, JSON.stringify(v)); }
@@ -2603,6 +2640,181 @@ function parkQuizSubmit(){
   parkQuizAns = null;
   const startBtn = document.getElementById('parkQuizBtn');
   if(startBtn){ startBtn.textContent='再来一题'; startBtn.onclick=parkQuizStart; }
+}
+
+// ============ 3D 小岛换装 ============
+const OUTFITS = [
+  {id:'default', name:'日常校服', price:0,  top:'#ffffff', pants:'#222222', hair:'short', shoe:'#333333', skin:'#ffd9b3'},
+  {id:'sport',   name:'活力运动', price:50, top:'#e74c3c', pants:'#2c3e50', hair:'short', shoe:'#ffffff', skin:'#ffd9b3'},
+  {id:'school',  name:'学院风',   price:50, top:'#3498db', pants:'#111111', hair:'long',  shoe:'#8b4513', skin:'#ffd9b3'},
+  {id:'summer',  name:'夏日清凉', price:50, top:'#f1c40f', pants:'#16a085', hair:'short', shoe:'#e67e22', skin:'#ffd9b3'},
+  {id:'winter',  name:'冬日暖暖', price:50, top:'#9b59b6', pants:'#34495e', hair:'long',  shoe:'#2c3e50', skin:'#ffd9b3'},
+  {id:'hero',    name:'超级英雄', price:80, top:'#2980b9', pants:'#c0392b', hair:'short', shoe:'#f1c40f', skin:'#ffd9b3'}
+];
+let currentOutfitId = load(LS.currentOutfit, 'default');
+let islandInited = false;
+let islandScene, islandCamera, islandRenderer, islandChar, islandAnimId = null;
+function ownedOutfits(){
+  let o = load(LS.ownedOutfits, ['default']);
+  if(!o.includes('default')) o.unshift('default');
+  return o;
+}
+function currentOutfit(){ return OUTFITS.find(o=>o.id===currentOutfitId) || OUTFITS[0]; }
+function ensureThree(){
+  if(typeof THREE !== 'undefined') return Promise.resolve();
+  return new Promise((resolve,reject)=>{
+    const s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js';
+    s.onload=()=>resolve();
+    s.onerror=()=>reject(new Error('three load fail'));
+    document.head.appendChild(s);
+  });
+}
+function enterIsland(){
+  document.getElementById('islandOverlay').style.display='block';
+  ensureThree().then(()=>{
+    if(!islandInited) initIsland();
+    renderIslandStars();
+  }).catch(()=>{
+    alert('3D 引擎加载失败，请检查网络后重试');
+    exitIsland();
+  });
+}
+function exitIsland(){
+  document.getElementById('islandOverlay').style.display='none';
+  if(islandAnimId){ cancelAnimationFrame(islandAnimId); islandAnimId=null; }
+  if(islandRenderer){ islandRenderer.dispose(); islandRenderer=null; }
+  islandInited = false;
+}
+function initIsland(){
+  const wrap = document.getElementById('islandCanvas');
+  const w = wrap.clientWidth, h = wrap.clientHeight;
+  islandScene = new THREE.Scene();
+  islandScene.background = new THREE.Color(0xaee3ff);
+  islandCamera = new THREE.PerspectiveCamera(50, w/h, 0.1, 100);
+  islandCamera.position.set(0, 2.4, 6.2);
+  islandCamera.lookAt(0, 1.1, 0);
+  islandRenderer = new THREE.WebGLRenderer({antialias:true});
+  islandRenderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+  islandRenderer.setSize(w, h);
+  wrap.innerHTML='';
+  wrap.appendChild(islandRenderer.domElement);
+  islandScene.add(new THREE.AmbientLight(0xffffff, 0.85));
+  const dir = new THREE.DirectionalLight(0xffffff, 0.7);
+  dir.position.set(5,10,7);
+  islandScene.add(dir);
+  buildIsland();
+  islandChar = buildCharacter(currentOutfit());
+  islandScene.add(islandChar);
+  islandInited = true;
+  animateIsland();
+  window.addEventListener('resize', resizeIsland);
+}
+function buildIsland(){
+  const g = new THREE.Group();
+  const dirt = new THREE.Mesh(new THREE.CylinderGeometry(2.4, 1.7, 1.2, 32), new THREE.MeshStandardMaterial({color:0x9b6b3f}));
+  dirt.position.y = -0.6; g.add(dirt);
+  const grass = new THREE.Mesh(new THREE.CylinderGeometry(2.5, 2.5, 0.3, 32), new THREE.MeshStandardMaterial({color:0x6cc24a}));
+  grass.position.y = 0.05; g.add(grass);
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.15,0.18,1,8), new THREE.MeshStandardMaterial({color:0x8b5a2b}));
+  trunk.position.set(1.4, 0.9, -0.4); g.add(trunk);
+  const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.6,16,16), new THREE.MeshStandardMaterial({color:0x3fa34d}));
+  leaf.position.set(1.4, 1.6, -0.4); g.add(leaf);
+  islandScene.add(g);
+}
+function buildCharacter(o){
+  const g = new THREE.Group();
+  const skin = new THREE.MeshStandardMaterial({color:new THREE.Color(o.skin||'#ffd9b3')});
+  const top = new THREE.MeshStandardMaterial({color:new THREE.Color(o.top||'#ffffff')});
+  const pants = new THREE.MeshStandardMaterial({color:new THREE.Color(o.pants||'#222222')});
+  const shoe = new THREE.MeshStandardMaterial({color:new THREE.Color(o.shoe||'#333333')});
+  const hair = new THREE.MeshStandardMaterial({color:0x111111});
+  const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.16,0.85,12), pants); legL.position.set(-0.2,-0.42,0);
+  const legR = legL.clone(); legR.position.x = 0.2;
+  const shoeL = new THREE.Mesh(new THREE.BoxGeometry(0.24,0.16,0.42), shoe); shoeL.position.set(-0.2,-0.88,0.07);
+  const shoeR = shoeL.clone(); shoeR.position.x = 0.2;
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.32,0.27,0.9,16), top); body.position.y = 0.45;
+  const armL = new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.1,0.75,10), top); armL.position.set(-0.42,0.45,0); armL.rotation.z = 0.25;
+  const armR = armL.clone(); armR.position.x = 0.42; armR.rotation.z = -0.25;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.3,20,20), skin); head.position.y = 1.15;
+  let hairMesh;
+  if(o.hair==='long'){
+    hairMesh = new THREE.Group();
+    const cap = new THREE.Mesh(new THREE.SphereGeometry(0.32,20,20,0,Math.PI*2,0,Math.PI/1.7), hair); cap.position.y = 1.18;
+    const back = new THREE.Mesh(new THREE.CylinderGeometry(0.31,0.29,0.55,20), hair); back.position.y = 1.02;
+    hairMesh.add(cap); hairMesh.add(back);
+  } else {
+    hairMesh = new THREE.Mesh(new THREE.SphereGeometry(0.32,20,20,0,Math.PI*2,0,Math.PI/1.8), hair);
+    hairMesh.position.y = 1.18;
+  }
+  g.add(legL, legR, shoeL, shoeR, body, armL, armR, head, hairMesh);
+  return g;
+}
+function animateIsland(){
+  if(!islandInited || !islandRenderer) return;
+  islandAnimId = requestAnimationFrame(animateIsland);
+  if(islandChar){
+    islandChar.rotation.y += 0.012;
+    islandChar.position.y = Math.sin(Date.now()*0.002)*0.06;
+  }
+  islandRenderer.render(islandScene, islandCamera);
+}
+function resizeIsland(){
+  if(!islandInited || !islandRenderer) return;
+  const wrap = document.getElementById('islandCanvas');
+  const w = wrap.clientWidth, h = wrap.clientHeight;
+  islandCamera.aspect = w/h; islandCamera.updateProjectionMatrix();
+  islandRenderer.setSize(w, h);
+}
+function equipOutfit(id){
+  currentOutfitId = id;
+  save(LS.currentOutfit, id);
+  if(islandChar && islandScene){
+    islandScene.remove(islandChar);
+    islandChar = buildCharacter(currentOutfit());
+    islandScene.add(islandChar);
+  }
+}
+function renderIslandStars(){
+  const s = parkPoints;
+  const el = document.getElementById('islandStars');
+  const sh = document.getElementById('shopStars');
+  if(el) el.textContent = '⭐ ' + s;
+  if(sh) sh.textContent = '⭐' + s;
+}
+function openIslandShop(){
+  renderShopList();
+  document.getElementById('islandShop').style.display='block';
+}
+function closeIslandShop(){
+  document.getElementById('islandShop').style.display='none';
+}
+function renderShopList(){
+  const owned = ownedOutfits();
+  const box = document.getElementById('islandShopList');
+  box.innerHTML = OUTFITS.map(o=>{
+    const isOwned = owned.includes(o.id);
+    const equipped = (o.id===currentOutfitId);
+    const canBuy = !isOwned && parkPoints >= o.price;
+    const cls = isOwned ? 'owned' : (canBuy ? 'buyable' : 'cant');
+    const txt = isOwned ? (equipped ? '已穿着' : '穿上') : (o.price + '⭐');
+    return `<div class="island-shop-item">
+      <span class="island-shop-swatch" style="background:${o.top}"></span>
+      <span class="island-shop-name">${o.name}</span>
+      <button class="island-shop-buy ${cls}" onclick="shopAction('${o.id}')">${txt}</button>
+    </div>`;
+  }).join('');
+}
+function shopAction(id){
+  const owned = ownedOutfits();
+  if(owned.includes(id)){ equipOutfit(id); renderShopList(); return; }
+  const o = OUTFITS.find(x=>x.id===id);
+  if(!o || parkPoints < o.price){ alert('星星不够哦，先去攒星星吧！'); return; }
+  parkAddPoints(-o.price);
+  owned.push(id); save(LS.ownedOutfits, owned);
+  equipOutfit(id);
+  renderIslandStars();
+  renderShopList();
 }
 
 // ============ 初始化 ============
