@@ -838,12 +838,20 @@ if('speechSynthesis' in window){ speechSynthesis.onvoiceschanged = _loadVoices; 
 function getMandarinVoice(){
   if(!_voices || !_voices.length) _loadVoices();
   if(!_voices || !_voices.length) return null;
-  // 1) 优先 zh-CN
-  let v = _voices.find(x=>x.lang==='zh-CN') || _voices.find(x=>{ const l=(x.lang||'').toLowerCase(); return l.startsWith('zh-cn'); });
-  if(v) return v;
-  // 2) 退而求其次：任何 zh- 开头，但排除粤语/港/台/澳/繁体
+  // 仅在普通话(zh-CN, 排除粤语/港/台/澳/繁体)范围内挑选
   const bad = ['yue','zh-hk','zh-tw','zh-mo','zh-hant'];
-  v = _voices.find(x=>{ const l=(x.lang||'').toLowerCase(); return l.startsWith('zh') && !bad.some(b=>l.indexOf(b)>=0); });
+  const isZhCN = x => { const l=(x.lang||'').toLowerCase(); return l==='zh-cn' || (l.startsWith('zh-cn') && !bad.some(b=>l.indexOf(b)>=0)); };
+  const cnVoices = _voices.filter(isZhCN);
+  if(cnVoices.length){
+    // 女声优先：按名称/voiceURI 命中女声关键词打分，分数高者优先
+    const femaleKW = ['tingting','ting-ting','huihui','yaoyao','xiaoxiao','xiaoyi','yushu','yu-shu','女','female','woman','普通话（中国大陆）','普通话 (中国大陆)','zhilin','xiaobei','yunxi','xiaomeng','ruoxi','lily','zira','susan','xiao','yue','yan','mei'];
+    const maleKW = ['kangkang','yunyang','男','male','云扬','康康','david','mark'];
+    const score = v => { const s=((v.name||'')+' '+(v.voiceURI||'')).toLowerCase(); let n=0; if(femaleKW.some(k=>s.indexOf(k)>=0)) n+=2; if(maleKW.some(k=>s.indexOf(k)>=0)) n-=2; return n; };
+    cnVoices.sort((a,b)=>score(b)-score(a));
+    return cnVoices[0];
+  }
+  // 退而求其次：任何 zh- 开头（排除粤语/港/台/澳/繁体）
+  const v = _voices.find(x=>{ const l=(x.lang||'').toLowerCase(); return l.startsWith('zh') && !bad.some(b=>l.indexOf(b)>=0); });
   return v || null;
 }
 function speakWord(text){
@@ -1916,7 +1924,7 @@ function openDictationSettings(){
     <div class="setting-row"><span>语速</span><div class="option-group" id="rateGroup"></div></div>
   `, '确定', ()=>{ closeModal(); });
   renderSettingOptions('repeatGroup', [1,2,3], dictationConfig.repeat, v=>{dictationConfig.repeat=v; save(LS.dictationConfig, dictationConfig);});
-  renderSettingOptions('intervalGroup', [3000,5000,8000], dictationConfig.interval, v=>{dictationConfig.interval=v; save(LS.dictationConfig, dictationConfig);});
+  renderSettingOptions('intervalGroup', [5000,8000,12000], dictationConfig.interval, v=>{dictationConfig.interval=v; save(LS.dictationConfig, dictationConfig);});
   renderSettingOptions('rateGroup', [0.75,1,1.25,1.5], dictationConfig.rate || 0.75, v=>{dictationConfig.rate=v; save(LS.dictationConfig, dictationConfig);});
 }
 function dictationBack(){
@@ -1988,7 +1996,7 @@ function addDictationToWrong(){
   alert('已加入错题本');
 }
 function renderSettingOptions(id, values, current, cb){
-  const labels = {3000:'3秒',5000:'5秒',8000:'8秒',0.75:'0.75x',1:'1.0x',1.25:'1.25x',1.5:'1.5x'};
+  const labels = {3000:'3秒',5000:'5秒',8000:'8秒',12000:'12秒',0.75:'0.75x',1:'1.0x',1.25:'1.25x',1.5:'1.5x'};
   document.getElementById(id).innerHTML = values.map(v=>`<span class="option-btn ${v===current?'active':''}" onclick="setOption('${id}',${v},this)">${labels[v]||v}</span>`).join('');
   window._settingCb = cb;
 }
