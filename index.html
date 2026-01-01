@@ -386,7 +386,13 @@ select,input[type=text],input[type=number]{width:100%;padding:12px;border:2px so
   <!-- 打卡 -->
   <div class="page" id="page-checkin">
     <div class="card">
-      <div class="card-title">📋 每日任务清单 <span class="badge" id="taskStarTotal">0 ⭐</span></div>
+      <div class="card-title" style="justify-content:space-between;">
+      <span>📋 每日任务清单 <span class="badge" id="taskStarTotal">0 ⭐</span></span>
+      <div class="row" style="gap:6px;">
+        <button class="btn btn-sm btn-outline" onclick="exportData()">📤 导出</button>
+        <button class="btn btn-sm btn-outline" onclick="importData()">📥 导入</button>
+      </div>
+    </div>
       <div id="taskList"></div>
       <div class="task-row task-all-done" id="taskAllDoneRow">
         <span class="task-name">🎉 今天已完成全部打卡</span>
@@ -489,6 +495,39 @@ const LS = {
 function load(k, def){ try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch(e){ return def; } }
 function save(k, v){ localStorage.setItem(k, JSON.stringify(v)); }
 function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function exportData(){
+  const data = {};
+  Object.values(LS).forEach(k => { data[k] = localStorage.getItem(k); });
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const d = new Date();
+  const filename = `daydayup_backup_${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}.json`;
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+function importData(){
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = '.json,application/json';
+  input.onchange = () => {
+    const file = input.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result);
+        if(!confirm('导入将覆盖当前所有本地数据，确定继续？')) return;
+        Object.values(LS).forEach(k => { if(data[k] !== undefined) localStorage.setItem(k, data[k]); else localStorage.removeItem(k); });
+        alert('导入成功，页面即将刷新');
+        location.reload();
+      } catch(e){
+        alert('导入失败：文件格式不正确');
+      }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
 function toneMark(py){
   if(!py) return '';
   // 已是带声调符号则直接返回
