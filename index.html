@@ -341,6 +341,15 @@ const GRADE_OPTIONS = [["1-1", "一年级上册"], ["1-2", "一年级下册"], [
 
 let CHINESE = load(LS.chinese, null);
 if(!CHINESE){ CHINESE = JSON.parse(JSON.stringify(DEFAULT_CHINESE)); save(LS.chinese, CHINESE); }
+else {
+  // 默认教材数据更新时（单元数变多），自动同步到本地，避免用户一直看到旧缓存
+  let needUpdate = false;
+  for(const gradeId in DEFAULT_CHINESE){
+    if(!CHINESE[gradeId]){ needUpdate = true; break; }
+    if(DEFAULT_CHINESE[gradeId].units.length !== (CHINESE[gradeId].units||[]).length){ needUpdate = true; break; }
+  }
+  if(needUpdate){ CHINESE = JSON.parse(JSON.stringify(DEFAULT_CHINESE)); save(LS.chinese, CHINESE); }
+}
 let currentGrade = '3-1';
 let editMode = false;
 let dictationSelections = { units:[], lessons:[], poems:[], hanzi:[], words:[], poemFull:[] };
