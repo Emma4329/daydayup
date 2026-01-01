@@ -331,6 +331,7 @@ select,input[type=text],input[type=number]{width:100%;padding:12px;border:2px so
       <div class="row" id="wrongActions" style="margin-bottom:12px;display:none;">
         <button class="btn btn-green" style="flex:1;" onclick="dictateSelectedWrong()">🎧 去听写</button>
         <button class="btn btn-blue" style="flex:1;" onclick="printSelectedWrong()">🖨️ 去打印</button>
+        <button class="btn btn-red" style="flex:1;" onclick="deleteSelectedWrong()">🗑️ 删除</button>
       </div>
       <div id="wrongList"></div>
       <div class="empty-tip" id="wrongEmpty">还没有错题，真棒！</div>
@@ -671,7 +672,7 @@ function renderDictationTree(){
   const box = document.getElementById('dictationTree');
   if(!data || !data.units || !data.units.length){ box.innerHTML='<div class="empty-tip">没有可听写内容</div>'; return; }
   box.innerHTML = data.units.map((unit, ui)=>{
-    const unitChecked = dictationSelections.units.includes(ui);
+    const unitChecked = isUnitFullySelected(ui);
     const unitOpen = dictationExpanded.includes('u-'+ui);
     let html = `<div class="unit-block">
       <div class="check-row" style="padding-left:14px;background:#fff;border-radius:12px;margin-bottom:6px;">
@@ -682,7 +683,7 @@ function renderDictationTree(){
       <div class="unit-body ${unitOpen?'open':''}" id="dict-unit-body-${ui}" style="background:transparent;border:none;padding:0 0 0 12px;display:${unitOpen?'block':'none'};">`;
     unit.lessons.forEach((lesson, li)=>{
       const key = `${ui}-${li}`;
-      const lessonChecked = dictationSelections.lessons.includes(key);
+      const lessonChecked = isLessonFullySelected(key);
       const isOpen = dictationExpanded.includes(key);
       html += `<div class="lesson-row" style="margin-bottom:8px;">
         <div class="lesson-title" onclick="toggleDictExpand('${key}')">
@@ -700,7 +701,7 @@ function renderDictationTree(){
     });
     unit.poems.forEach((poem, pi)=>{
       const key = `${ui}-${pi}`;
-      const poemChecked = dictationSelections.poems.includes(key);
+      const poemChecked = isPoemFullySelected(key);
       const isOpen = dictationExpanded.includes(key);
       const fullKey = key;
       html += `<div class="lesson-row" style="margin-bottom:8px;">
@@ -727,13 +728,57 @@ function renderDictationTree(){
   }).join('');
   updateDictationCount();
 }
-function isDictChildSelected(key){
-  const parts = key.split('-');
-  if(parts.length < 2) return false;
-  const ui = Number(parts[0]);
-  if(dictationSelections.units.includes(ui)) return true;
-  const parentKey = `${parts[0]}-${parts[1]}`;
-  return dictationSelections.lessons.includes(parentKey) || dictationSelections.poems.includes(parentKey);
+function isLessonFullySelected(key){
+  const [ui, li] = key.split('-').map(Number);
+  const lesson = CHINESE[currentGrade].units[ui].lessons[li];
+  if(dictationTypes.hanzi && lesson.hanzi.some((_,i)=>!dictationSelections.hanzi.includes(`${key}-${i}`))) return false;
+  if(dictationTypes.words && lesson.words.some((_,i)=>!dictationSelections.words.includes(`${key}-${i}`))) return false;
+  return true;
+}
+function isPoemFullySelected(key){
+  const [ui, pi] = key.split('-').map(Number);
+  const poem = CHINESE[currentGrade].units[ui].poems[pi];
+  if(dictationTypes.hanzi && poem.hanzi.some((_,i)=>!dictationSelections.hanzi.includes(`${key}-${i}`))) return false;
+  if(dictationTypes.words && poem.words.some((_,i)=>!dictationSelections.words.includes(`${key}-${i}`))) return false;
+  if(dictationTypes.poem && poem.full && !dictationSelections.poemFull.includes(key)) return false;
+  return true;
+}
+function isUnitFullySelected(ui){
+  const unit = CHINESE[currentGrade].units[ui];
+  return unit.lessons.every((_,li)=>isLessonFullySelected(`${ui}-${li}`)) &&
+         unit.poems.every((_,pi)=>isPoemFullySelected(`${ui}-${pi}`));
+}
+function getLessonAllKeys(key){
+  const [ui, li] = key.split('-').map(Number);
+  const lesson = CHINESE[currentGrade].units[ui].lessons[li];
+  const keys = [];
+  if(dictationTypes.hanzi) lesson.hanzi.forEach((_,i)=>keys.push({field:'hanzi', key:`${key}-${i}`}));
+  if(dictationTypes.words) lesson.words.forEach((_,i)=>keys.push({field:'words', key:`${key}-${i}`}));
+  return keys;
+}
+function getPoemAllKeys(key){
+  const [ui, pi] = key.split('-').map(Number);
+  const poem = CHINESE[currentGrade].units[ui].poems[pi];
+  const keys = [];
+  if(dictationTypes.hanzi) poem.hanzi.forEach((_,i)=>keys.push({field:'hanzi', key:`${key}-${i}`}));
+  if(dictationTypes.words) poem.words.forEach((_,i)=>keys.push({field:'words', key:`${key}-${i}`}));
+  if(dictationTypes.poem && poem.full) keys.push({field:'poemFull', key});
+  return keys;
+}
+function getUnitAllKeys(ui){
+  const unit = CHINESE[currentGrade].units[ui];
+  const keys = [];
+  unit.lessons.forEach((_,li)=>keys.push(...getLessonAllKeys(`${ui}-${li}`)));
+  unit.poems.forEach((_,pi)=>keys.push(...getPoemAllKeys(`${ui}-${pi}`)));
+  return keys;
+}
+function selectKeys(list, select){
+  list.forEach(({field,key})=>{
+    const arr = dictationSelections[field];
+    const pos = arr.indexOf(key);
+    if(select && pos<0) arr.push(key);
+    if(!select && pos>=0) arr.splice(pos,1);
+  });
 }
 function renderDictItems(title, list, field, parentKey){
   return `
@@ -741,8 +786,7 @@ function renderDictItems(title, list, field, parentKey){
     <div class="word-grid">
       ${list.map((it, i)=>{
         const key = `${parentKey}-${i}`;
-        const selfChecked = dictationSelections[field==='hanzi'?'hanzi':'words'].includes(key);
-        const checked = selfChecked || isDictChildSelected(key);
+        const checked = dictationSelections[field==='hanzi'?'hanzi':'words'].includes(key);
         return `<div class="word-tag dict-word ${checked?'reading':''}" onclick="toggleDictWord('${field}','${key}')">
           <input type="checkbox" ${checked?'checked':''} onclick="event.stopPropagation();toggleDictWord('${field}','${key}')" style="width:16px;height:16px;cursor:pointer;">
           <div>
@@ -755,18 +799,8 @@ function renderDictItems(title, list, field, parentKey){
   `;
 }
 function toggleDictUnit(ui){
-  const pos = dictationSelections.units.indexOf(ui);
-  const unit = CHINESE[currentGrade].units[ui];
-  if(pos>=0){
-    dictationSelections.units.splice(pos,1);
-    unit.lessons.forEach((_,li)=>{ const k=`${ui}-${li}`; removeIfExists(dictationSelections.lessons,k); });
-    unit.poems.forEach((_,pi)=>{ const k=`${ui}-${pi}`; removeIfExists(dictationSelections.poems,k); });
-    removeChildrenKeys(ui, 'hanzi'); removeChildrenKeys(ui, 'words'); removeChildrenKeys(ui, 'poemFull');
-  } else {
-    dictationSelections.units.push(ui);
-    unit.lessons.forEach((_,li)=>{ const k=`${ui}-${li}`; if(!dictationSelections.lessons.includes(k)) dictationSelections.lessons.push(k); });
-    unit.poems.forEach((_,pi)=>{ const k=`${ui}-${pi}`; if(!dictationSelections.poems.includes(k)) dictationSelections.poems.push(k); });
-  }
+  const all = getUnitAllKeys(ui);
+  selectKeys(all, !isUnitFullySelected(ui));
   renderDictationTree();
 }
 function removeIfExists(arr, v){ const i=arr.indexOf(v); if(i>=0) arr.splice(i,1); }
@@ -781,23 +815,11 @@ function removeChildrenKeys(ui, field){
   dictationSelections[field] = dictationSelections[field].filter(k=>!k.startsWith(prefix));
 }
 function toggleDictLesson(key){
-  const pos = dictationSelections.lessons.indexOf(key);
-  if(pos>=0){
-    dictationSelections.lessons.splice(pos,1);
-    removeChildrenKeysOf(key, 'hanzi'); removeChildrenKeysOf(key, 'words');
-  } else {
-    dictationSelections.lessons.push(key);
-  }
+  selectKeys(getLessonAllKeys(key), !isLessonFullySelected(key));
   renderDictationTree();
 }
 function toggleDictPoem(key){
-  const pos = dictationSelections.poems.indexOf(key);
-  if(pos>=0){
-    dictationSelections.poems.splice(pos,1);
-    removeChildrenKeysOf(key, 'hanzi'); removeChildrenKeysOf(key, 'words'); removeIfExists(dictationSelections.poemFull, key);
-  } else {
-    dictationSelections.poems.push(key);
-  }
+  selectKeys(getPoemAllKeys(key), !isPoemFullySelected(key));
   renderDictationTree();
 }
 function removeChildrenKeysOf(parentKey, field){
@@ -834,31 +856,28 @@ function buildDictationQueue(){
   const data = CHINESE[currentGrade];
   if(!data || !data.units) return;
   data.units.forEach((unit, ui)=>{
-    const unitSelected = dictationSelections.units.includes(ui);
     unit.lessons.forEach((lesson, li)=>{
       const key = `${ui}-${li}`;
-      const lessonSelected = unitSelected || dictationSelections.lessons.includes(key);
       if(dictationTypes.hanzi) lesson.hanzi.forEach((h,hi)=>{
         const hKey = `${key}-${hi}`;
-        if(lessonSelected || dictationSelections.hanzi.includes(hKey)) dictationQueue.push({type:'hanzi', ...h});
+        if(dictationSelections.hanzi.includes(hKey)) dictationQueue.push({type:'hanzi', ...h});
       });
       if(dictationTypes.words) lesson.words.forEach((w,wi)=>{
         const wKey = `${key}-${wi}`;
-        if(lessonSelected || dictationSelections.words.includes(wKey)) dictationQueue.push({type:'word', ...w});
+        if(dictationSelections.words.includes(wKey)) dictationQueue.push({type:'word', ...w});
       });
     });
     unit.poems.forEach((poem, pi)=>{
       const key = `${ui}-${pi}`;
-      const poemSelected = unitSelected || dictationSelections.poems.includes(key);
       if(dictationTypes.hanzi) poem.hanzi.forEach((h,hi)=>{
         const hKey = `${key}-${hi}`;
-        if(poemSelected || dictationSelections.hanzi.includes(hKey)) dictationQueue.push({type:'hanzi', ...h});
+        if(dictationSelections.hanzi.includes(hKey)) dictationQueue.push({type:'hanzi', ...h});
       });
       if(dictationTypes.words) poem.words.forEach((w,wi)=>{
         const wKey = `${key}-${wi}`;
-        if(poemSelected || dictationSelections.words.includes(wKey)) dictationQueue.push({type:'word', ...w});
+        if(dictationSelections.words.includes(wKey)) dictationQueue.push({type:'word', ...w});
       });
-      if(dictationTypes.poem && poem.full && (poemSelected || dictationSelections.poemFull.includes(key))){
+      if(dictationTypes.poem && poem.full && dictationSelections.poemFull.includes(key)){
         dictationQueue.push({type:'poem', w:poem.name, py:'', full:poem.full, author:poem.author});
       }
     });
@@ -869,15 +888,6 @@ function buildDictationQueue(){
 function saveDictationHistory(){
   const data = CHINESE[currentGrade];
   const items = [];
-  if(dictationSelections.units.length) items.push(...dictationSelections.units.map(ui=>data.units[ui].name));
-  dictationSelections.lessons.forEach(key=>{
-    const [ui, li] = key.split('-').map(Number);
-    items.push(data.units[ui].lessons[li].name);
-  });
-  dictationSelections.poems.forEach(key=>{
-    const [ui, pi] = key.split('-').map(Number);
-    items.push(data.units[ui].poems[pi].name);
-  });
   const individualLessons = new Set();
   dictationSelections.hanzi.concat(dictationSelections.words).forEach(key=>{
     const parts = key.split('-');
@@ -962,6 +972,24 @@ function dictationStop(){
   document.getElementById('playIcon').textContent = '▶';
   document.getElementById('autoIcon').textContent = '▶';
 }
+function findExampleWords(w){
+  const examples=[];
+  const data=CHINESE[currentGrade];
+  if(!data || !data.units) return examples;
+  data.units.forEach(unit=>{
+    unit.lessons.forEach(lesson=>{
+      (lesson.words||[]).forEach(word=>{
+        if(word.w && word.w.includes(w) && !examples.includes(word.w)) examples.push(word.w);
+      });
+    });
+    unit.poems.forEach(poem=>{
+      (poem.words||[]).forEach(word=>{
+        if(word.w && word.w.includes(w) && !examples.includes(word.w)) examples.push(word.w);
+      });
+    });
+  });
+  return examples.slice(0,2);
+}
 function dictationSpeakCurrent(){
   const item = dictationQueue[dictationIndex];
   if(!item) return;
@@ -969,8 +997,9 @@ function dictationSpeakCurrent(){
   document.getElementById('playIcon').textContent = '⏸';
   let text;
   if(item.type==='hanzi'){
-    const e1 = item.e1 || item.w;
-    const e2 = item.e2 || item.w;
+    const examples=findExampleWords(item.w);
+    const e1 = (item.e1 && item.e1!==item.w) ? item.e1 : (examples[0] || item.w);
+    const e2 = (item.e2 && item.e2!==item.w && item.e2!==e1) ? item.e2 : (examples[1] || examples[0] || item.w);
     text = `${item.w}，${e1}的${item.w}，${item.w}，${e2}的${item.w}`;
   } else if(item.type==='word'){
     text = item.w;
@@ -1086,12 +1115,15 @@ function splitWordPinyin(py){
   for(let idx=0;idx<groups.length;idx++){
     const g=groups[idx];
     const nextVowelStart=idx+1<groups.length?groups[idx+1].vStart:plain.length;
-    const nextSub=plain.slice(nextVowelStart);
-    let nextInitialLen=0;
+    // find the initial of next syllable, which sits right before next vowel group
+    let sylEnd=nextVowelStart;
     for(const init of initials){
-      if(nextSub.startsWith(init)){ nextInitialLen=init.length; break; }
+      const initStart=nextVowelStart-init.length;
+      if(initStart>=g.vEnd && plain.slice(initStart,nextVowelStart)===init){
+        sylEnd=initStart;
+        break;
+      }
     }
-    const sylEnd=nextVowelStart-nextInitialLen;
     res.push(py.slice(prevEnd,sylEnd));
     prevEnd=sylEnd;
   }
@@ -1429,7 +1461,6 @@ function renderWrong(){
           <div class="meta">${wrongDisplayAns(w)}</div>
         </div>
       </div>
-      <button class="del" onclick="delWrong(${i})">删除</button>
     </div>`;
   }).join('');
 }
@@ -1440,28 +1471,36 @@ function switchWrongTab(tab){
 }
 function wrongDisplayText(w){
   if(w.type==='math') return `${w.text} = ?`;
-  if(w.type==='chinese-hanzi') return `听写生字：${toneMark(w.py) || w.w}`;
-  if(w.type==='chinese-word') return `听写词语：${toneMark(w.py) || w.w}`;
-  if(w.type==='chinese-poem') return `古诗：${w.w}`;
+  if(w.type==='chinese-hanzi') return `${toneMark(w.py) || w.w}`;
+  if(w.type==='chinese-word') return `${toneMark(w.py) || w.w}`;
+  if(w.type==='chinese-poem') return `${w.w}`;
   // 兼容旧数据
   if(w.text && (w.text.includes('听写') || w.text.includes('古诗'))) return w.text;
   return w.text || w.w || '错题';
 }
 function wrongDisplayAns(w){
   if(w.type==='math') return `答案：${w.ans}`;
-  if(w.type==='chinese-hanzi') return `${w.w} · ${w.e1||''} · ${w.e2||''}`;
+  if(w.type==='chinese-hanzi') return `${w.w}`;
   if(w.type==='chinese-word') return `${w.w}`;
   if(w.type==='chinese-poem') return `${w.full || ''}`;
   if(w.text && (w.text.includes('听写') || w.text.includes('古诗'))) return `答案：${w.ans}`;
   return `答案：${w.ans}`;
 }
-function delWrong(i){ const arr=load(LS.wrong,[]); arr.splice(i,1); save(LS.wrong,arr); renderWrong(); }
 function toggleWrongSelect(i){
   if(wrongSelections.has(i)) wrongSelections.delete(i); else wrongSelections.add(i);
 }
 function getSelectedChineseWrong(){
   const arr = load(LS.wrong, []);
   return arr.filter((w,i)=>wrongSelections.has(i) && isChineseWrong(w));
+}
+function deleteSelectedWrong(){
+  if(wrongSelections.size===0){ alert('请先选择要删除的错题'); return; }
+  if(!confirm(`确定删除选中的 ${wrongSelections.size} 条错题？`)) return;
+  const all = load(LS.wrong, []);
+  const next = all.filter((w,i)=>!wrongSelections.has(i));
+  save(LS.wrong, next);
+  wrongSelections.clear();
+  renderWrong();
 }
 function dictateSelectedWrong(){
   const items = getSelectedChineseWrong();
