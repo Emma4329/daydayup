@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#FF8A3D">
-<!-- build: daydayup-deploy 2026-08-29T19:21:00+08:00 -->
+<!-- build: daydayup-deploy 2026-08-29T19:27:00+08:00 -->
 <title>天天向上 · 小学生学习平台</title>
 <style>
 :root {
@@ -248,10 +248,6 @@ select,input[type=text],input[type=number]{width:100%;padding:12px;border:2px so
         <div class="dictation-examples" id="dictationExamples"></div>
         <div class="dictation-hint" id="dictationProgress">1 / 1</div>
       </div>
-      <div class="row" style="margin-top:16px;">
-        <button class="btn btn-outline" style="flex:1;" onclick="dictationBack()">← 返回</button>
-        <button class="btn" style="flex:1;" onclick="addDictationToWrong()">➕ 加入错题本</button>
-      </div>
       <div class="dictation-controls">
         <div class="control-row">
           <button class="control-btn" onclick="dictationPrev()">
@@ -264,6 +260,10 @@ select,input[type=text],input[type=number]{width:100%;padding:12px;border:2px so
             <span class="icon">⏭</span><span>下一个</span>
           </button>
         </div>
+      </div>
+      <div class="row" style="margin-top:16px;">
+        <button class="btn btn-outline" style="flex:1;" onclick="dictationBack()">← 返回</button>
+        <button class="btn" style="flex:1;" onclick="addDictationToWrong()">➕ 加入错题本</button>
       </div>
     </div>
   </div>
@@ -1000,8 +1000,8 @@ function renderDictationHistory(){
         <div class="meta">${h.grade} · 听写：${h.items.join('、')} · 共 ${h.count} 项</div>
       </div>
       <div class="history-actions">
-        ${(h.queue && h.queue.length) || canRebuildHistoryQueue(h) ? `<button class="btn btn-sm btn-green" onclick="replayDictationHistory(${i})">听写</button>` : ''}
         <button class="fav-btn ${h.fav?'fav':''}" onclick="toggleDictationFav(${i})">${h.fav?'♥':'♡'}</button>
+        ${(h.queue && h.queue.length) || canRebuildHistoryQueue(h) ? `<button class="btn btn-sm btn-green" onclick="replayDictationHistory(${i})">听写</button>` : ''}
         <button class="del" onclick="delDictationHistory(${i})">删除</button>
       </div>
     </div>
