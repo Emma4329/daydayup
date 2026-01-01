@@ -435,6 +435,7 @@ let editMode = false;
 let dictationSelections = { units:[], lessons:[], poems:[], hanzi:[], words:[], poemFull:[] };
 let dictationExpanded = [];
 let wrongSelections = new Set();
+let wrongBookReturn = false; // 从错题本进入听写/打印后，返回时应回到错题本并保留选择
 let dictationTypes = { hanzi:true, words:true, poem:false };
 let wrongTab = 'chinese';
 let printSelections = { units:[], lessons:[], poems:[], hanzi:[], words:[], poemFull:[] };
@@ -445,7 +446,7 @@ let dictationIndex = 0;
 let dictationPaused = false;
 let dictationTimer = null;
 let dictationPlaying = false;
-let dictationConfig = load(LS.dictationConfig, { repeat: 2, interval: 3000 });
+let dictationConfig = load(LS.dictationConfig, { repeat: 2, interval: 5000, rate: 0.75 });
 let lastChineseSubPage = 'chinese'; // 'chinese' | 'dictation-select' | 'dictation'
 
 // ============ 通用弹窗 ============
@@ -483,6 +484,8 @@ document.querySelectorAll('.bottom-nav .nav-item').forEach(n=>{
     if(target==='chinese' && (lastChineseSubPage==='dictation' || lastChineseSubPage==='dictation-select')){
       target = lastChineseSubPage;
     }
+    // 从底部导航进入错题本属于全新访问，清空之前的选择
+    if(target==='wrong') wrongSelections.clear();
     switchPage(target);
   };
 });
@@ -657,11 +660,15 @@ function speak(text, lang, rate=0.9){
 
 // ============ 听写选择 ============
 function openDictationSelect(){
+  wrongBookReturn = false;
   dictationSelections = { units:[], lessons:[], poems:[], hanzi:[], words:[], poemFull:[] };
   dictationExpanded = [];
   switchPage('dictation-select');
 }
-function backToChinese(){ switchPage('chinese'); }
+function backToChinese(){
+  if(wrongBookReturn){ switchPage('wrong'); wrongBookReturn=false; return; }
+  switchPage('chinese');
+}
 function renderDictationTree(){
   const data = CHINESE[currentGrade];
   const box = document.getElementById('dictationTree');
@@ -939,6 +946,7 @@ function delDictationHistory(i){
 
 // ============ 听写模式 ============
 function startDictation(){
+  wrongBookReturn = false;
   buildDictationQueue();
   if(dictationQueue.length===0){ alert('请先选择听写内容'); return; }
   saveDictationHistory();
@@ -1009,7 +1017,7 @@ function dictationSpeakCurrent(){
       dictationPlaying = false;
       document.getElementById('playIcon').textContent = '▶';
     }
-  });
+  }, dictationConfig.rate || 0.75);
 }
 function speakQueue(text, times, cb, rate=0.75){
   if(times<=0){ cb(); return; }
@@ -1036,12 +1044,15 @@ function openDictationSettings(){
   openModal('读词设置', `
     <div class="setting-row"><span>读词次数</span><div class="option-group" id="repeatGroup"></div></div>
     <div class="setting-row"><span>读词间隔</span><div class="option-group" id="intervalGroup"></div></div>
+    <div class="setting-row"><span>语速</span><div class="option-group" id="rateGroup"></div></div>
   `, '确定', ()=>{ closeModal(); });
   renderSettingOptions('repeatGroup', [1,2,3], dictationConfig.repeat, v=>{dictationConfig.repeat=v; save(LS.dictationConfig, dictationConfig);});
-  renderSettingOptions('intervalGroup', [1000,3000,5000,7000,9000], dictationConfig.interval, v=>{dictationConfig.interval=v; save(LS.dictationConfig, dictationConfig);});
+  renderSettingOptions('intervalGroup', [3000,5000,8000], dictationConfig.interval, v=>{dictationConfig.interval=v; save(LS.dictationConfig, dictationConfig);});
+  renderSettingOptions('rateGroup', [0.75,1,1.25,1.5], dictationConfig.rate || 0.75, v=>{dictationConfig.rate=v; save(LS.dictationConfig, dictationConfig);});
 }
 function dictationBack(){
   dictationStop();
+  if(wrongBookReturn){ switchPage('wrong'); wrongBookReturn=false; return; }
   switchPage('dictation-select');
 }
 function addDictationToWrong(){
@@ -1059,7 +1070,7 @@ function addDictationToWrong(){
   alert('已加入错题本');
 }
 function renderSettingOptions(id, values, current, cb){
-  const labels = {1000:'1秒',3000:'3秒',5000:'5秒',7000:'7秒',9000:'9秒'};
+  const labels = {3000:'3秒',5000:'5秒',8000:'8秒',0.75:'0.75x',1:'1.0x',1.25:'1.25x',1.5:'1.5x'};
   document.getElementById(id).innerHTML = values.map(v=>`<span class="option-btn ${v===current?'active':''}" onclick="setOption('${id}',${v},this)">${labels[v]||v}</span>`).join('');
   window._settingCb = cb;
 }
@@ -1072,6 +1083,7 @@ function setOption(id, v, el){
 // ============ 去打印 ============
 function openPrint(customItems){
   if(customItems && customItems.length){
+    wrongBookReturn = false;
     renderPrintSheet(customItems, '错题本字词表');
     switchPage('print');
     return;
@@ -1419,7 +1431,6 @@ function parseOldChineseWrong(w){
   return {type:'hanzi', w:word, py:py, e1:w.e1||'', e2:w.e2||''};
 }
 function renderWrong(){
-  wrongSelections.clear();
   const all=load(LS.wrong,[]);
   const filters = {
     chinese: w => isChineseWrong(w),
@@ -1454,7 +1465,7 @@ function renderWrong(){
   if(hasChinese){
     box.innerHTML = `<div class="word-grid">${arr.map(({w,i})=>`
       <div class="word-tag" style="position:relative;padding-top:22px;min-width:72px;text-align:center;cursor:pointer;" onclick="event.stopPropagation();">
-        <input type="checkbox" style="position:absolute;top:6px;left:6px;width:18px;height:18px;cursor:pointer;" onchange="event.stopPropagation();toggleWrongSelect(${i})">
+        <input type="checkbox" ${wrongSelections.has(i)?'checked':''} style="position:absolute;top:6px;left:6px;width:18px;height:18px;cursor:pointer;" onchange="event.stopPropagation();toggleWrongSelect(${i})">
         <div class="py" style="font-size:12px;margin-bottom:2px;">${toneMark(w.py)||w.w}</div>
         <div style="font-size:18px;font-weight:800;">${w.w}</div>
       </div>
@@ -1472,6 +1483,7 @@ function renderWrong(){
 }
 function switchWrongTab(tab){
   wrongTab = tab;
+  wrongSelections.clear();
   document.querySelectorAll('.wrong-tab-chip').forEach(c=>c.classList.toggle('active', c.dataset.wtab===tab));
   renderWrong();
 }
@@ -1511,6 +1523,7 @@ function deleteSelectedWrong(){
 function dictateSelectedWrong(){
   const items = getSelectedChineseWrong();
   if(items.length===0){ alert('请先选择生字或词语'); return; }
+  wrongBookReturn = true;
   dictationQueue = items.map(w=>{
     const parsed = (!w.type || !w.type.startsWith('chinese')) ? parseOldChineseWrong(w) : null;
     if(parsed) return parsed;
@@ -1529,6 +1542,7 @@ function dictateSelectedWrong(){
 function printSelectedWrong(){
   const items = getSelectedChineseWrong();
   if(items.length===0){ alert('请先选择生字或词语'); return; }
+  wrongBookReturn = true;
   const queueItems = items.map(w=>{
     const parsed = (!w.type || !w.type.startsWith('chinese')) ? parseOldChineseWrong(w) : null;
     if(parsed) return parsed;
