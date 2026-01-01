@@ -654,9 +654,9 @@ function speakEnglish(){
   const big = document.getElementById('enBig');
   speak(big.dataset.val||big.textContent, 'en-US');
 }
-function speak(text, lang){
+function speak(text, lang, rate=0.9){
   if(!('speechSynthesis' in window)) return;
-  try{ const u=new SpeechSynthesisUtterance(text); u.lang=lang; u.rate=0.9; speechSynthesis.cancel(); speechSynthesis.speak(u); }catch(e){}
+  try{ const u=new SpeechSynthesisUtterance(text); u.lang=lang; u.rate=rate; speechSynthesis.cancel(); speechSynthesis.speak(u); }catch(e){}
 }
 
 // ============ 听写选择 ============
@@ -727,13 +727,22 @@ function renderDictationTree(){
   }).join('');
   updateDictationCount();
 }
+function isDictChildSelected(key){
+  const parts = key.split('-');
+  if(parts.length < 2) return false;
+  const ui = Number(parts[0]);
+  if(dictationSelections.units.includes(ui)) return true;
+  const parentKey = `${parts[0]}-${parts[1]}`;
+  return dictationSelections.lessons.includes(parentKey) || dictationSelections.poems.includes(parentKey);
+}
 function renderDictItems(title, list, field, parentKey){
   return `
     <div class="section-title">${title}</div>
     <div class="word-grid">
       ${list.map((it, i)=>{
         const key = `${parentKey}-${i}`;
-        const checked = dictationSelections[field==='hanzi'?'hanzi':'words'].includes(key);
+        const selfChecked = dictationSelections[field==='hanzi'?'hanzi':'words'].includes(key);
+        const checked = selfChecked || isDictChildSelected(key);
         return `<div class="word-tag dict-word ${checked?'reading':''}" onclick="toggleDictWord('${field}','${key}')">
           <input type="checkbox" ${checked?'checked':''} onclick="event.stopPropagation();toggleDictWord('${field}','${key}')" style="width:16px;height:16px;cursor:pointer;">
           <div>
@@ -960,9 +969,9 @@ function dictationSpeakCurrent(){
   document.getElementById('playIcon').textContent = '⏸';
   let text;
   if(item.type==='hanzi'){
-    const ex1 = item.e1 ? `，${item.e1}` : '';
-    const ex2 = item.e2 ? `，${item.e2}` : '';
-    text = `${item.w}${ex1}${ex2}`;
+    const e1 = item.e1 || item.w;
+    const e2 = item.e2 || item.w;
+    text = `${item.w}，${e1}的${item.w}，${item.w}，${e2}的${item.w}`;
   } else if(item.type==='word'){
     text = item.w;
   } else {
@@ -977,14 +986,14 @@ function dictationSpeakCurrent(){
     }
   });
 }
-function speakQueue(text, times, cb){
+function speakQueue(text, times, cb, rate=0.75){
   if(times<=0){ cb(); return; }
-  speak(text, 'zh-CN');
+  speak(text, 'zh-CN', rate);
   let check = setInterval(()=>{
     if(!speechSynthesis.speaking){
       clearInterval(check);
       if(times>1){
-        setTimeout(()=>speakQueue(text, times-1, cb), 500);
+        setTimeout(()=>speakQueue(text, times-1, cb, rate), 500);
       } else {
         cb();
       }
