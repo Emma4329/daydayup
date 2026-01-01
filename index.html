@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#FF8A3D">
-<!-- build: daydayup-deploy 2026-08-29T22:39:00+08:00 -->
+<!-- build: daydayup-deploy 2026-08-29T23:05:00+08:00 -->
 <title>天天向上 · 小学生学习平台</title>
 <style>
 :root {
@@ -60,6 +60,7 @@ select,input[type=text],input[type=number]{width:100%;padding:12px;border:2px so
 .history-actions{display:flex;align-items:center;gap:6px;flex-shrink:0;}
 .fav-btn{background:none;border:none;font-size:22px;line-height:1;cursor:pointer;padding:2px 4px;color:#BDBDBD;}
 .fav-btn.fav{color:#E91E63;}
+.ocr-result{margin-top:6px;font-size:14px;line-height:1.5;color:var(--text);white-space:pre-wrap;word-break:break-word;background:var(--bg);border-radius:10px;padding:8px 10px;}
 .empty-tip{text-align:center;color:var(--text-light);font-size:14px;padding:20px;}
 .checkin-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:6px;}
 .day-cell{aspect-ratio:1;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;background:var(--bg);border:1px solid var(--border);}
@@ -396,6 +397,7 @@ const LS = {
 };
 function load(k, def){ try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch(e){ return def; } }
 function save(k, v){ localStorage.setItem(k, JSON.stringify(v)); }
+function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function toneMark(py){
   if(!py) return '';
   // 已是带声调符号则直接返回
@@ -2147,13 +2149,60 @@ function onWrongPhotoSelected(ev){
   const file = ev.target.files && ev.target.files[0];
   ev.target.value = '';
   if(!file) return;
-  compressImage(file, dataURL => {
-    const arr = load(LS.wrong, []);
-    arr.unshift({type:'math-photo', photo:dataURL, grade:wrongGrade, ts:Date.now(), count:1});
-    if(arr.length>200) arr.length=200;
-    save(LS.wrong, arr);
-    renderWrong();
+  compressImage(file, dataURL => { openPhotoReview(dataURL); });
+}
+let _tesseractLoading = null;
+function ensureTesseract(){
+  if(typeof Tesseract !== 'undefined') return Promise.resolve();
+  if(_tesseractLoading) return _tesseractLoading;
+  _tesseractLoading = new Promise((resolve, reject)=>{
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
+    s.onload = ()=>resolve();
+    s.onerror = ()=>reject(new Error('OCR 引擎加载失败'));
+    document.head.appendChild(s);
   });
+  return _tesseractLoading;
+}
+function runOCR(dataURL){
+  const status = document.getElementById('ocrStatus');
+  const ta = document.getElementById('ocrText');
+  ensureTesseract().then(()=>{
+    Tesseract.recognize(dataURL, 'chi_sim+eng', { logger: m => {
+      if(status && m.status==='recognizing text') status.textContent = `正在识别文字… ${Math.round(m.progress*100)}%`;
+    }}).then(({data})=>{
+      if(status) status.style.display='none';
+      if(ta){ ta.value = (data.text||'').trim(); ta.style.display='block'; }
+    }).catch(()=>{
+      if(status) status.textContent='识别失败，可直接保存照片';
+      if(ta) ta.style.display='block';
+    });
+  }).catch(()=>{
+    if(status) status.textContent='OCR 引擎加载失败（可直接保存照片）';
+    if(ta) ta.style.display='block';
+  });
+}
+function openPhotoReview(dataURL){
+  const body = `
+    <div style="text-align:center;">
+      <img src="${dataURL}" style="max-width:100%;max-height:200px;border-radius:10px;border:1px solid var(--border);">
+    </div>
+    <div id="ocrStatus" style="text-align:center;color:var(--text-light);font-size:13px;margin:10px 0;">正在识别文字…</div>
+    <textarea id="ocrText" style="display:none;width:100%;min-height:90px;padding:10px;border:2px solid var(--border);border-radius:12px;font-size:14px;box-sizing:border-box;" placeholder="识别出的文字会显示在这里，可手动修改后保存"></textarea>
+  `;
+  openModal('录入数学错题', body, '保存', ()=>{
+    const ta = document.getElementById('ocrText');
+    savePhotoWrong(dataURL, ta ? ta.value.trim() : '');
+  });
+  runOCR(dataURL);
+}
+function savePhotoWrong(dataURL, text){
+  const arr = load(LS.wrong, []);
+  arr.unshift({type:'math-photo', photo:dataURL, ocrText:text, grade:wrongGrade, ts:Date.now(), count:1});
+  if(arr.length>200) arr.length=200;
+  save(LS.wrong, arr);
+  closeModal();
+  renderWrong();
 }
 function delWrongItem(i){
   if(!confirm('确定删除这条错题？')) return;
@@ -2248,7 +2297,7 @@ function renderWrong(){
       <div class="list-item" style="align-items:flex-start;">
         <div style="flex:1;min-width:0;">
           ${w.photo
-            ? `<img src="${w.photo}" style="max-width:100%;max-height:240px;border-radius:10px;border:1px solid var(--border);display:block;">${w.count>1?`<div style="margin-top:4px;"><span style="display:inline-block;background:var(--red);color:#fff;border-radius:8px;padding:1px 6px;font-size:11px;font-weight:800;">错 ${w.count} 次</span></div>`:''}`
+            ? `<img src="${w.photo}" style="max-width:100%;max-height:240px;border-radius:10px;border:1px solid var(--border);display:block;">${w.ocrText ? `<div class="ocr-result">${escapeHtml(w.ocrText)}</div>` : ''}${w.count>1?`<div style="margin-top:4px;"><span style="display:inline-block;background:var(--red);color:#fff;border-radius:8px;padding:1px 6px;font-size:11px;font-weight:800;">错 ${w.count} 次</span></div>`:''}`
             : `<div class="name">${wrongDisplayText(w)}${w.count > 1 ? ` <span style="display:inline-block;background:var(--red);color:#fff;border-radius:8px;padding:1px 6px;font-size:11px;font-weight:800;">${w.count}</span>` : ''}</div><div class="meta">${wrongDisplayAns(w)}</div>`
           }
         </div>
