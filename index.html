@@ -484,8 +484,8 @@ function switchPage(name){
   if(name==='checkin') renderCheckin();
   if(name==='chinese') renderChinesePage();
   if(name==='dictation-select') renderDictationTree();
-  // 记录语文相关子页面，切换走后仍可恢复
-  if(name==='dictation' || name==='dictation-select') lastChineseSubPage = name;
+  // 记录语文相关子页面，切换走后仍可恢复；从错题本进入的听写/打印不归语文记忆
+  if((name==='dictation' || name==='dictation-select') && lastWrongPage!=='dictation' && lastWrongPage!=='print') lastChineseSubPage = name;
   if(name==='chinese') lastChineseSubPage = 'chinese';
   window.scrollTo(0,0);
 }
