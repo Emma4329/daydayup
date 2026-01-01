@@ -1896,6 +1896,8 @@ function addDictationToWrong(){
   renderWrong();
   dictationRevealed = true;
   renderDictationItem();
+  dictationStop();
+  dictationPaused = true;
   alert('已加入错题本');
 }
 function renderSettingOptions(id, values, current, cb){
