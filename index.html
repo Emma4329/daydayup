@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#FF8A3D">
+<title>天天向上 · 小学生学习平台</title>
+<style>
+  :root {
+    --bg:#FFF7EF; --card:#FFFFFF; --border:#FFE3C8;
+    --text:#3A2E25; --text-light:#9A8472;
+    --primary:#FF8A3D; --primary-dark:#F2701C; --primary-light:#FFD9B8;
+    --blue:#3FA7E0; --green:#46B26E; --purple:#9C6ADE; --red:#E8604C;
+    --shadow:0 3px 12px rgba(255,138,61,0.16);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column;min-height:100vh;}
+  .top-bar{background:linear-gradient(135deg,var(--primary-dark),var(--primary));color:#fff;padding:16px 18px;position:sticky;top:0;z-index:50;box-shadow:0 2px 10px rgba(242,112,28,0.3);}
+  .top-bar h1{font-size:20px;font-weight:800;letter-spacing:1px;}
+  .top-bar .sub{font-size:12px;opacity:0.9;margin-top:2px;}
+  .main{flex:1;padding:14px 14px 90px;max-width:560px;margin:0 auto;width:100%;}
+  .card{background:var(--card);border-radius:16px;padding:16px;margin-bottom:14px;box-shadow:var(--shadow);border:1px solid var(--border);}
+  .card-title{font-size:16px;font-weight:800;display:flex;align-items:center;gap:8px;margin-bottom:12px;}
+  .btn{border:none;border-radius:12px;padding:12px 14px;font-size:15px;font-weight:700;cursor:pointer;color:#fff;background:var(--primary);transition:transform .08s;}
+  .btn:active{transform:scale(0.96);}
+  .btn-blue{background:var(--blue);}
+  .btn-green{background:var(--green);}
+  .btn-purple{background:var(--purple);}
+  .btn-red{background:var(--red);}
+  .btn-outline{background:#fff;color:var(--primary-dark);border:2px solid var(--primary-light);}
+  .btn-block{width:100%;}
+  .row{display:flex;gap:10px;flex-wrap:wrap;}
+  .chip{padding:8px 14px;border-radius:999px;border:2px solid var(--border);background:#fff;font-size:14px;font-weight:700;color:var(--text-light);cursor:pointer;}
+  .chip.active{background:var(--primary);color:#fff;border-color:var(--primary);}
+  .seg{display:flex;gap:8px;margin-bottom:12px;}
+  .seg .chip{flex:1;text-align:center;}
+  label{font-size:13px;color:var(--text-light);font-weight:700;display:block;margin-bottom:6px;}
+  select,input[type=text],input[type=number]{width:100%;padding:12px;border:2px solid var(--border);border-radius:12px;font-size:15px;background:#fff;color:var(--text);}
+  /* 口算练习 */
+  .quiz-num{font-size:42px;font-weight:800;text-align:center;margin:10px 0;letter-spacing:2px;}
+  .quiz-ans{font-size:24px;text-align:center;padding:14px;margin:10px 0;border:2px solid var(--border);border-radius:12px;background:var(--bg);}
+  .quiz-meta{display:flex;justify-content:space-between;font-size:14px;font-weight:700;color:var(--text-light);margin-bottom:6px;}
+  .result-big{font-size:30px;font-weight:800;text-align:center;margin:8px 0;}
+  .feedback{text-align:center;font-size:18px;font-weight:800;min-height:24px;}
+  .ok{color:var(--green);} .no{color:var(--red);}
+  /* 语文/英语卡片 */
+  .study-card{background:linear-gradient(135deg,#FFF3E6,#FFE9D6);border-radius:16px;padding:24px;text-align:center;border:2px solid var(--border);min-height:160px;display:flex;flex-direction:column;justify-content:center;align-items:center;cursor:pointer;}
+  .study-card .big{font-size:40px;font-weight:800;}
+  .study-card .small{font-size:20px;color:var(--text-light);margin-top:8px;}
+  .study-card .pinyin{font-size:16px;color:var(--purple);margin-top:6px;}
+  .progress-dots{display:flex;gap:6px;justify-content:center;margin-top:10px;}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--border);}
+  .dot.done{background:var(--green);}
+  .list-item{display:flex;justify-content:space-between;align-items:center;padding:12px;border-bottom:1px solid var(--border);}
+  .list-item:last-child{border-bottom:none;}
+  .list-item .name{font-size:16px;font-weight:700;}
+  .list-item .meta{font-size:12px;color:var(--text-light);}
+  .del{background:var(--red);color:#fff;border:none;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;}
+  .empty-tip{text-align:center;color:var(--text-light);font-size:14px;padding:20px;}
+  /* 打卡 */
+  .checkin-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:6px;}
+  .day-cell{aspect-ratio:1;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;background:var(--bg);border:1px solid var(--border);}
+  .day-cell.done{background:var(--green);color:#fff;}
+  .day-cell.today{outline:2px solid var(--primary);}
+  .streak{font-size:15px;font-weight:800;color:var(--primary-dark);text-align:center;margin:8px 0;}
+  .bottom-nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--border);display:flex;z-index:60;padding:6px 4px;padding-bottom:calc(6px + env(safe-area-inset-bottom));}
+  .bottom-nav .nav-item{flex:1;text-align:center;padding:6px 2px;color:var(--text-light);font-size:11px;font-weight:700;cursor:pointer;}
+  .bottom-nav .nav-item .ni{font-size:22px;display:block;margin-bottom:2px;}
+  .bottom-nav .nav-item.active{color:var(--primary);}
+  .page{display:none;}
+  .page.active{display:block;}
+  .badge{display:inline-block;background:var(--primary-light);color:var(--primary-dark);border-radius:8px;padding:2px 8px;font-size:11px;font-weight:800;margin-left:6px;}
+  .hint{font-size:12px;color:var(--text-light);margin-top:6px;}
+</style>
+</head>
+<body>
+<div class="top-bar">
+  <h1>🚀 天天向上</h1>
+  <div class="sub">小学生学习平台 · 口算 · 语文 · 英语</div>
+</div>
+
+<div class="main">
+  <!-- 口算 -->
+  <div class="page active" id="page-math">
+    <div class="card">
+      <div class="card-title">🧮 口算练习</div>
+      <div class="seg" id="opSeg">
+        <span class="chip active" data-op="mix">混合</span>
+        <span class="chip" data-op="add">加</span>
+        <span class="chip" data-op="sub">减</span>
+        <span class="chip" data-op="mul">乘</span>
+        <span class="chip" data-op="div">除</span>
+      </div>
+      <div class="seg" id="gradeSeg">
+        <span class="chip active" data-grade="1">一年级</span>
+        <span class="chip" data-grade="2">二年级</span>
+        <span class="chip" data-grade="3">三年级</span>
+        <span class="chip" data-grade="4">四年级</span>
+      </div>
+      <button class="btn btn-block" onclick="startQuiz()">开始练习</button>
+    </div>
+    <div class="card" id="quizCard" style="display:none;">
+      <div class="quiz-meta"><span id="quizNo">第 1 / 20 题</span><span id="quizTimer">⏱ 60s</span></div>
+      <div class="quiz-num" id="quizQ">3 + 5 = ?</div>
+      <div class="quiz-ans" id="quizAns" contenteditable="true" spellcheck="false">点击输入答案</div>
+      <div class="feedback" id="quizFeedback"></div>
+      <div class="row" style="margin-top:8px;">
+        <button class="btn btn-green" style="flex:1;" onclick="submitAnswer()">确定</button>
+        <button class="btn btn-outline" style="flex:1;" onclick="endQuiz(true)">结束</button>
+      </div>
+    </div>
+    <div class="card" id="quizResult" style="display:none;">
+      <div class="card-title">🎉 练习完成</div>
+      <div class="result-big" id="resultText"></div>
+      <div class="feedback" id="resultDetail"></div>
+      <button class="btn btn-block" onclick="startQuiz()" style="margin-top:10px;">再来一组</button>
+    </div>
+  </div>
+
+  <!-- 语文 -->
+  <div class="page" id="page-chinese">
+    <div class="card">
+      <div class="card-title">📖 语文 <span class="badge">点卡片可朗读</span></div>
+      <div class="seg" id="chineseSeg">
+        <span class="chip active" data-set="hanzi">生字</span>
+        <span class="chip" data-set="poem">古诗</span>
+      </div>
+      <div class="study-card" id="chineseCard" onclick="speakCurrent()">
+        <div class="big" id="cnBig">字</div>
+        <div class="pinyin" id="cnPinyin"></div>
+        <div class="small" id="cnSmall"></div>
+      </div>
+      <div class="row" style="margin-top:10px;">
+        <button class="btn btn-outline" style="flex:1;" onclick="prevChinese()">上一个</button>
+        <button class="btn btn-outline" style="flex:1;" onclick="nextChinese()">下一个</button>
+      </div>
+      <div class="progress-dots" id="cnDots"></div>
+    </div>
+  </div>
+
+  <!-- 英语 -->
+  <div class="page" id="page-english">
+    <div class="card">
+      <div class="card-title">🔤 英语单词</div>
+      <div class="seg" id="enModeSeg">
+        <span class="chip active" data-mode="en">英→中</span>
+        <span class="chip" data-mode="zh">中→英</span>
+      </div>
+      <div class="study-card" id="enCard" onclick="speakEnglish()">
+        <div class="big" id="enBig">apple</div>
+        <div class="small" id="enSmall">点击显示意思</div>
+      </div>
+      <div class="row" style="margin-top:10px;">
+        <button class="btn btn-outline" style="flex:1;" onclick="prevEnglish()">上一个</button>
+        <button class="btn btn-outline" style="flex:1;" onclick="nextEnglish()">下一个</button>
+      </div>
+      <div class="progress-dots" id="enDots"></div>
+    </div>
+  </div>
+
+  <!-- 错题本 -->
+  <div class="page" id="page-wrong">
+    <div class="card">
+      <div class="card-title">📕 错题本 <span class="badge" id="wrongCount">0</span></div>
+      <div id="wrongList"></div>
+      <div class="empty-tip" id="wrongEmpty">还没有错题，真棒！做完口算练习，答错的题会自动收藏在这里。</div>
+    </div>
+  </div>
+
+  <!-- 打卡 -->
+  <div class="page" id="page-checkin">
+    <div class="card">
+      <div class="card-title">✅ 学习打卡</div>
+      <div class="streak" id="streakText"></div>
+      <button class="btn btn-green btn-block" onclick="doCheckin()">今天打卡 ✓</button>
+      <div class="hint">连续打卡天数越多，学习越棒！</div>
+      <div class="checkin-grid" id="checkinGrid"></div>
+    </div>
+  </div>
+</div>
+
+<div class="bottom-nav">
+  <div class="nav-item active" data-page="math"><span class="ni">🧮</span>口算</div>
+  <div class="nav-item" data-page="chinese"><span class="ni">📖</span>语文</div>
+  <div class="nav-item" data-page="english"><span class="ni">🔤</span>英语</div>
+  <div class="nav-item" data-page="wrong"><span class="ni">📕</span>错题</div>
+  <div class="nav-item" data-page="checkin"><span class="ni">✅</span>打卡</div>
+</div>
+
+<script>
+// ============ 数据 ============
+const LS = {
+  wrong: 'ddup_wrong_v1',
+  checkin: 'ddup_checkin_v1'
+};
+function load(k, def){ try { return JSON.parse(localStorage.getItem(k)) ?? def; } catch(e){ return def; } }
+function save(k, v){ localStorage.setItem(k, JSON.stringify(v)); }
+
+// 语文数据
+const HANZI = [
+  {w:'花',py:'huā',m:'花朵、花草',e:'一种植物器官'},
+  {w:'鸟',py:'niǎo',m:'小鸟、飞鸟',e:'会飞的动物'},
+  {w:'水',py:'shuǐ',m:'喝水、河水',e:'生命之源'},
+  {w:'火',py:'huǒ',m:'大火、火苗',e:'能燃烧发热'},
+  {w:'山',py:'shān',m:'高山、大山',e:'高大的地形'},
+  {w:'月',py:'yuè',m:'月亮、月光',e:'夜空的卫星'},
+  {w:'日',py:'rì',m:'日子、日光',e:'太阳'},
+  {w:'星',py:'xīng',m:'星星、星空',e:'夜空中的亮点'},
+  {w:'风',py:'fēng',m:'大风、春风',e:'流动的空气'},
+  {w:'雨',py:'yǔ',m:'下雨、雨水',e:'从云落下'}
+];
+const POEMS = [
+  {w:'静夜思',a:'李白',m:'床前明月光，疑是地上霜。举头望明月，低头思故乡。'},
+  {w:'春晓',a:'孟浩然',m:'春眠不觉晓，处处闻啼鸟。夜来风雨声，花落知多少。'},
+  {w:'咏鹅',a:'骆宾王',m:'鹅，鹅，鹅，曲项向天歌。白毛浮绿水，红掌拨清波。'},
+  {w:'登鹳雀楼',a:'王之涣',m:'白日依山尽，黄河入海流。欲穷千里目，更上一层楼。'},
+  {w:'悯农',a:'李绅',m:'锄禾日当午，汗滴禾下土。谁知盘中餐，粒粒皆辛苦。'}
+];
+// 英语数据（小学基础词）
+const WORDS = [
+  {en:'apple',zh:'苹果'},{en:'banana',zh:'香蕉'},{en:'cat',zh:'猫'},{en:'dog',zh:'狗'},
+  {en:'book',zh:'书'},{en:'pen',zh:'钢笔'},{en:'red',zh:'红色'},{en:'blue',zh:'蓝色'},
+  {en:'sun',zh:'太阳'},{en:'moon',zh:'月亮'},{en:'tree',zh:'树'},{en:'fish',zh:'鱼'},
+  {en:'teacher',zh:'老师'},{en:'student',zh:'学生'},{en:'school',zh:'学校'},{en:'water',zh:'水'}
+];
+
+// ============ 导航 ============
+const PAGE_TITLES = { math:'口算', chinese:'语文', english:'英语', wrong:'错题', checkin:'打卡' };
+function switchPage(name){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  document.querySelectorAll('.bottom-nav .nav-item').forEach(n=>n.classList.remove('active'));
+  document.querySelector(`.bottom-nav .nav-item[data-page="${name}"]`).classList.add('active');
+  if(name==='wrong') renderWrong();
+  if(name==='checkin') renderCheckin();
+  window.scrollTo(0,0);
+}
+document.querySelectorAll('.bottom-nav .nav-item').forEach(n=>{
+  n.onclick=()=>switchPage(n.dataset.page);
+});
+
+// ============ 口算 ============
+let quizOp='mix', quizGrade=1;
+let quizList=[], quizIdx=0, quizCorrect=0, quizTimer=60, quizTimerId=null, quizCurAns=null;
+document.querySelectorAll('#opSeg .chip').forEach(c=>c.onclick=()=>{
+  document.querySelectorAll('#opSeg .chip').forEach(x=>x.classList.remove('active'));
+  c.classList.add('active'); quizOp=c.dataset.op;
+});
+document.querySelectorAll('#gradeSeg .chip').forEach(c=>c.onclick=()=>{
+  document.querySelectorAll('#gradeSeg .chip').forEach(x=>x.classList.remove('active'));
+  c.classList.add('active'); quizGrade=parseInt(c.dataset.grade);
+});
+
+function rnd(a,b){ return Math.floor(Math.random()*(b-a+1))+a; }
+function genQuestion(){
+  const g=quizGrade;
+  let op=quizOp;
+  if(op==='mix') op=['add','sub','mul','div'][rnd(0,3)];
+  let a,b,ans,text;
+  if(op==='add'){ const max=10+g*20; a=rnd(1,max); b=rnd(1,max); ans=a+b; text=`${a} + ${b}`; }
+  else if(op==='sub'){ const max=10+g*20; a=rnd(1,max); b=rnd(1,a); ans=a-b; text=`${a} − ${b}`; }
+  else if(op==='mul'){ const m=g<=2?5:g<=3?9:g<=4?12:19; a=rnd(2,m); b=rnd(2,g<=2?5:g<=3?9:9); ans=a*b; text=`${a} × ${b}`; }
+  else { const m=g<=2?5:g<=3?9:9; b=rnd(2,m); ans=rnd(2,9); a=ans*b; text=`${a} ÷ ${b}`; }
+  return {text, ans};
+}
+function startQuiz(){
+  quizList=[]; for(let i=0;i<20;i++) quizList.push(genQuestion());
+  quizIdx=0; quizCorrect=0; quizTimer=60;
+  document.getElementById('quizCard').style.display='block';
+  document.getElementById('quizResult').style.display='none';
+  document.getElementById('quizFeedback').textContent='';
+  document.getElementById('quizFeedback').className='feedback';
+  showQuestion();
+  if(quizTimerId) clearInterval(quizTimerId);
+  quizTimerId=setInterval(()=>{
+    quizTimer--;
+    document.getElementById('quizTimer').textContent='⏱ '+quizTimer+'s';
+    if(quizTimer<=0) endQuiz(false);
+  },1000);
+}
+function showQuestion(){
+  const q=quizList[quizIdx];
+  document.getElementById('quizNo').textContent=`第 ${quizIdx+1} / ${quizList.length} 题`;
+  document.getElementById('quizQ').textContent=`${q.text} = ?`;
+  const ans=document.getElementById('quizAns');
+  ans.textContent=''; ans.classList.remove('no');
+  ans.focus();
+  quizCurAns=q.ans;
+  document.getElementById('quizFeedback').textContent='';
+  document.getElementById('quizFeedback').className='feedback';
+}
+function getAns(){
+  const t=document.getElementById('quizAns').textContent.trim();
+  const n=parseInt(t,10);
+  return isNaN(n)?null:n;
+}
+function submitAnswer(){
+  const ua=getAns();
+  if(ua===null){ document.getElementById('quizFeedback').textContent='请输入数字答案'; return; }
+  const fb=document.getElementById('quizFeedback');
+  if(ua===quizCurAns){
+    fb.textContent='✓ 答对啦！'; fb.className='feedback ok'; quizCorrect++;
+  } else {
+    fb.textContent=`✗ 正确答案是 ${quizCurAns}`; fb.className='feedback no';
+    addWrong(quizList[quizIdx]);
+  }
+  quizIdx++;
+  if(quizIdx>=quizList.length){ endQuiz(false); return; }
+  setTimeout(showQuestion, 700);
+}
+function endQuiz(manual){
+  if(quizTimerId) clearInterval(quizTimerId);
+  document.getElementById('quizCard').style.display='none';
+  document.getElementById('quizResult').style.display='block';
+  const total=quizList.length;
+  const pct=Math.round(quizCorrect/total*100);
+  document.getElementById('resultText').textContent=`答对 ${quizCorrect} / ${total} 题`;
+  let grade = pct>=90?'太厉害了！🌟':pct>=70?'很不错！👍':pct>=50?'继续加油！💪':'多练习会更好！📚';
+  document.getElementById('resultDetail').textContent=grade;
+}
+// 回车提交
+document.getElementById('quizAns').addEventListener('keydown',e=>{ if(e.key==='Enter') submitAnswer(); });
+
+function addWrong(q){
+  const arr=load(LS.wrong,[]);
+  arr.unshift({text:q.text, ans:q.ans, ts:Date.now()});
+  if(arr.length>200) arr.length=200;
+  save(LS.wrong,arr);
+}
+function renderWrong(){
+  const arr=load(LS.wrong,[]);
+  document.getElementById('wrongCount').textContent=arr.length;
+  const box=document.getElementById('wrongList');
+  if(arr.length===0){ box.innerHTML=''; document.getElementById('wrongEmpty').style.display='block'; return; }
+  document.getElementById('wrongEmpty').style.display='none';
+  box.innerHTML=arr.map((w,i)=>`<div class="list-item">
+    <div><div class="name">${w.text} = ?</div><div class="meta">答案：${w.ans}</div></div>
+    <button class="del" onclick="delWrong(${i})">删除</button>
+  </div>`).join('');
+}
+function delWrong(i){ const arr=load(LS.wrong,[]); arr.splice(i,1); save(LS.wrong,arr); renderWrong(); }
+
+// ============ 语文 ============
+let cnSet='hanzi', cnIdx=0;
+document.querySelectorAll('#chineseSeg .chip').forEach(c=>c.onclick=()=>{
+  document.querySelectorAll('#chineseSeg .chip').forEach(x=>x.classList.remove('active'));
+  c.classList.add('active'); cnSet=c.dataset.set; cnIdx=0; renderChinese();
+});
+function curChinese(){ return cnSet==='hanzi'?HANZI:POEMS; }
+function renderChinese(){
+  const data=curChinese();
+  const item=data[cnIdx%data.length];
+  const big=document.getElementById('cnBig'), py=document.getElementById('cnPinyin'), sm=document.getElementById('cnSmall');
+  if(cnSet==='hanzi'){ big.textContent=item.w; py.textContent=item.py; sm.textContent=item.m; }
+  else { big.textContent=item.w+' · '+item.a; py.textContent='古诗'; sm.textContent=item.m; }
+  // 进度点
+  document.getElementById('cnDots').innerHTML=data.map((_,i)=>`<span class="dot ${i===cnIdx%data.length?'done':''}"></span>`).join('');
+}
+function nextChinese(){ cnIdx++; renderChinese(); }
+function prevChinese(){ cnIdx--; renderChinese(); }
+
+// ============ 英语 ============
+let enMode='en', enIdx=0;
+document.querySelectorAll('#enModeSeg .chip').forEach(c=>c.onclick=()=>{
+  document.querySelectorAll('#enModeSeg .chip').forEach(x=>x.classList.remove('active'));
+  c.classList.add('active'); enMode=c.dataset.mode; enIdx=0; renderEnglish();
+});
+function renderEnglish(){
+  const w=WORDS[enIdx%WORDS.length];
+  const big=document.getElementById('enBig'), sm=document.getElementById('enSmall');
+  if(enMode==='en'){ big.textContent=w.en; sm.textContent='点击显示中文'; big.dataset.val=w.en; }
+  else { big.textContent=w.zh; sm.textContent='点击显示英文'; big.dataset.val=w.en; }
+  document.getElementById('enDots').innerHTML=WORDS.map((_,i)=>`<span class="dot ${i===enIdx%WORDS.length?'done':''}"></span>`).join('');
+}
+function nextEnglish(){ enIdx++; renderEnglish(); }
+function prevEnglish(){ enIdx--; renderEnglish(); }
+
+// ============ 语音 ============
+function speak(text, lang){
+  if(!('speechSynthesis' in window)) return;
+  try{
+    const u=new SpeechSynthesisUtterance(text); u.lang=lang; u.rate=0.9;
+    speechSynthesis.cancel(); speechSynthesis.speak(u);
+  }catch(e){}
+}
+function speakCurrent(){
+  if(cnSet==='hanzi'){ const item=HANZI[cnIdx%HANZI.length]; speak(item.w,'zh-CN'); }
+  else { const item=POEMS[cnIdx%POEMS.length]; speak(item.m,'zh-CN'); }
+}
+function speakEnglish(){ speak(document.getElementById('enBig').dataset.val||'', 'en-US'); }
+
+// ============ 打卡 ============
+function todayStr(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function doCheckin(){
+  const arr=load(LS.checkin,[]);
+  const t=todayStr();
+  if(arr.includes(t)){ alert('今天已经打卡啦！'); return; }
+  arr.push(t); save(LS.checkin,arr); renderCheckin();
+}
+function renderCheckin(){
+  const arr=load(LS.checkin,[]);
+  const set=new Set(arr);
+  // 连续天数
+  let streak=0; const d=new Date();
+  while(true){
+    const s=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    if(set.has(s)){ streak++; d.setDate(d.getDate()-1); } else break;
+  }
+  document.getElementById('streakText').textContent= streak>0?`🔥 连续打卡 ${streak} 天，真棒！`:'今天还没有打卡哦';
+  // 当月网格
+  const now=new Date();
+  const y=now.getFullYear(), m=now.getMonth();
+  const first=new Date(y,m,1).getDay();
+  const days=new Date(y,m+1,0).getDate();
+  const today=todayStr();
+  let html='';
+  for(let i=0;i<first;i++) html+='<div class="day-cell"></div>';
+  const wnames=['日','一','二','三','四','五','六'];
+  for(let i=1;i<=days;i++){
+    const s=`${y}-${String(m+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
+    const cls='day-cell'+(set.has(s)?' done':'')+(s===today?' today':'');
+    html+=`<div class="${cls}">${i}</div>`;
+  }
+  document.getElementById('checkinGrid').innerHTML=html;
+}
+
+// ============ 初始化 ============
+function init(){
+  renderChinese(); renderEnglish(); renderWrong(); renderCheckin();
+}
+init();
+</script>
+</body>
+</html>
