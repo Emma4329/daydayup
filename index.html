@@ -1837,6 +1837,7 @@ function openDictationSettings(){
 }
 function dictationBack(){
   dictationStop();
+  dictationRevealed = false;
   if(wrongBookReturn){ switchPage('wrong'); wrongBookReturn=false; lastWrongPage='wrong'; return; }
   switchPage('dictation-select');
 }
@@ -2484,6 +2485,7 @@ function dictateSelectedWrong(){
   dictationIndex = 0;
   dictationPaused = false;
   dictationPlaying = false;
+  dictationRevealed = false;
   clearTimeout(dictationTimer);
   switchPage('dictation');
   renderDictationItem();
