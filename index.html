@@ -1817,11 +1817,11 @@ function speakQueue(text, times, cb, rate=0.75){
   }, 200);
 }
 function dictationNext(){
-  if(dictationIndex < dictationQueue.length-1){ dictationRevealed = false; dictationIndex++; renderDictationItem(); if(!dictationPaused) dictationSpeakCurrent(); }
+  if(dictationIndex < dictationQueue.length-1){ dictationRevealed = false; dictationPaused = false; dictationIndex++; renderDictationItem(); if(!dictationPaused) dictationSpeakCurrent(); }
   else { dictationStop(); alert('听写完成！'); }
 }
 function dictationPrev(){
-  if(dictationIndex>0){ dictationRevealed = false; dictationIndex--; renderDictationItem(); if(!dictationPaused) dictationSpeakCurrent(); }
+  if(dictationIndex>0){ dictationRevealed = false; dictationPaused = false; dictationIndex--; renderDictationItem(); if(!dictationPaused) dictationSpeakCurrent(); }
 }
 function openDictationSettings(){
   openModal('读词设置', `
