@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#FF8A3D">
-<!-- build: daydayup-deploy 2026-08-29T22:06:00+08:00 -->
+<!-- build: daydayup-deploy 2026-08-29T22:27:00+08:00 -->
 <title>天天向上 · 小学生学习平台</title>
 <style>
 :root {
@@ -2221,20 +2221,19 @@ function renderWrong(){
   document.getElementById('wrongSortCount')?.classList.toggle('active', wrongSort==='count');
   const box=document.getElementById('wrongList');
   const actions=document.getElementById('wrongActions');
+  const mathBar = document.getElementById('wrongMathBar');
+  const hasChinese = wrongTab==='chinese';
+  if(actions) actions.style.display = hasChinese ? 'flex' : 'none';
+  if(mathBar) mathBar.style.display = wrongTab==='math' ? 'flex' : 'none';
   if(arr.length===0){
     box.innerHTML='';
     const empty = document.getElementById('wrongEmpty');
     const tips = {chinese:'还没有语文错题，真棒！', math:'还没有数学错题，真棒！', english:'还没有英语错题，真棒！'};
     empty.textContent = tips[wrongTab] || tips.math;
     empty.style.display='block';
-    if(actions) actions.style.display='none';
     return;
   }
   document.getElementById('wrongEmpty').style.display='none';
-  const hasChinese = wrongTab==='chinese';
-  if(actions) actions.style.display = hasChinese ? 'flex' : 'none';
-  const mathBar = document.getElementById('wrongMathBar');
-  if(mathBar) mathBar.style.display = wrongTab==='math' ? 'flex' : 'none';
   if(hasChinese){
     box.innerHTML = `<div class="word-grid">${arr.map(({w,i})=>`
       <div class="word-tag" style="position:relative;padding-top:22px;min-width:72px;text-align:center;cursor:pointer;" onclick="event.stopPropagation();">
