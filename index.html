@@ -490,12 +490,11 @@ document.querySelectorAll('.bottom-nav .nav-item').forEach(n=>{
     if(target==='chinese' && (lastChineseSubPage==='dictation' || lastChineseSubPage==='dictation-select')){
       target = lastChineseSubPage;
     }
-    // 点击错题本时，如果之前在"错题本→听写/打印"子页面，恢复到该子页面
+    // 点击错题本时，如果之前在"错题本→听写/打印"子页面，恢复到该子页面;
+    // 否则回到错题本列表,并保留之前的选择
     if(target==='wrong' && (lastWrongPage==='dictation' || lastWrongPage==='print')){
       target = lastWrongPage;
     }
-    // 从底部导航全新进入错题本列表时，清空之前的选择
-    if(target==='wrong') wrongSelections.clear();
     switchPage(target);
   };
 });
