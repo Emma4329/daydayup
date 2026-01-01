@@ -481,6 +481,7 @@ select,input[type=text],input[type=number]{width:100%;padding:12px;border:2px so
     </div>
   </div>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.20.0/dist/index.js"></script>
 <script>
 // ============ 数据与工具 ============
 const LS = {
@@ -1824,6 +1825,19 @@ function wordPinyin(word){
   }
   return py || word;
 }
+// 获取真正的拼音：优先 wordPinyin，找不到时用 pinyin-pro 兜底，仍找不到返回空
+function getPinyin(word){
+  if(!word) return '';
+  const py = wordPinyin(word);
+  if(py && py !== word) return py;
+  if(typeof window !== 'undefined' && window.pinyinPro){
+    try {
+      const arr = window.pinyinPro.pinyin(word, {toneType:'symbol', type:'array'});
+      if(Array.isArray(arr) && arr.length) return arr.join('');
+    } catch(e){}
+  }
+  return '';
+}
 function dictationSpeakCurrent(){
   const item = dictationQueue[dictationIndex];
   if(!item) return;
@@ -2457,7 +2471,7 @@ function renderWrong(){
       <div class="word-tag" style="position:relative;padding-top:22px;min-width:72px;text-align:center;cursor:pointer;" onclick="event.stopPropagation();">
         <input type="checkbox" ${wrongSelections.has(i)?'checked':''} style="position:absolute;top:6px;left:6px;width:18px;height:18px;cursor:pointer;" onchange="event.stopPropagation();toggleWrongSelect(${i})">
         ${w.count > 1 ? `<span class="wrong-count" style="position:absolute;top:4px;right:6px;background:var(--red);color:#fff;border-radius:8px;padding:1px 6px;font-size:11px;font-weight:800;line-height:1;">${w.count}</span>` : ''}
-        <div class="py" style="font-size:12px;margin-bottom:2px;">${toneMark(w.py)||w.w}</div>
+        <div class="py" style="font-size:12px;margin-bottom:2px;">${toneMark((w.py && w.py!==w.w) ? w.py : getPinyin(w.w)) || w.w}</div>
         <div style="font-size:18px;font-weight:800;">${w.w}</div>
       </div>
     `).join('')}</div>`;
@@ -2489,8 +2503,8 @@ function switchWrongSort(sort){
 }
 function wrongDisplayText(w){
   if(w.type==='math') return `${w.text} = ?`;
-  if(w.type==='chinese-hanzi') return `${toneMark(w.py) || w.w}`;
-  if(w.type==='chinese-word') return `${toneMark(w.py) || w.w}`;
+  if(w.type==='chinese-hanzi') return `${toneMark((w.py && w.py!==w.w) ? w.py : getPinyin(w.w)) || w.w}`;
+  if(w.type==='chinese-word') return `${toneMark((w.py && w.py!==w.w) ? w.py : getPinyin(w.w)) || w.w}`;
   if(w.type==='chinese-poem') return `${w.w}`;
   // 兼容旧数据
   if(w.text && (w.text.includes('听写') || w.text.includes('古诗'))) return w.text;
@@ -2519,12 +2533,12 @@ function openAddWrongModal(){
 function doAddWrong(val){
   if(!/^[\u4e00-\u9fa5]+$/.test(val)){ alert('请输入纯汉字'); return; }
   const ts = Date.now();
+  const py = getPinyin(val);
   let entry;
   if(val.length === 1){
-    let py = HANZI_PY_MAP[val] || wordPinyin(val) || '';
     entry = {type:'chinese-hanzi', w:val, py:py, e1:'', e2:'', grade:wrongGrade, ts:ts, count:1};
   } else {
-    entry = {type:'chinese-word', w:val, py:wordPinyin(val)||'', grade:wrongGrade, ts:ts, count:1};
+    entry = {type:'chinese-word', w:val, py:py, grade:wrongGrade, ts:ts, count:1};
   }
   upsertWrong(entry);
   renderWrong();
@@ -2556,8 +2570,8 @@ function dictateSelectedWrong(){
     const parsed = (!w.type || !w.type.startsWith('chinese')) ? parseOldChineseWrong(w) : null;
     if(parsed) return parsed;
     if(w.type==='chinese-poem') return {type:'poem', w:w.w, py:'', full:w.full};
-    if(w.type==='chinese-word') return {type:'word', w:w.w, py:w.py};
-    return {type:'hanzi', w:w.w, py:w.py, e1:w.e1, e2:w.e2};
+    if(w.type==='chinese-word') return {type:'word', w:w.w, py:w.py || getPinyin(w.w)};
+    return {type:'hanzi', w:w.w, py:w.py || getPinyin(w.w), e1:w.e1, e2:w.e2};
   });
   dictationIndex = 0;
   dictationPaused = false;
@@ -2578,8 +2592,8 @@ function printSelectedWrong(){
     const parsed = (!w.type || !w.type.startsWith('chinese')) ? parseOldChineseWrong(w) : null;
     if(parsed) return parsed;
     if(w.type==='chinese-poem') return {type:'poem', w:w.w, py:'', full:w.full};
-    if(w.type==='chinese-word') return {type:'word', w:w.w, py:w.py};
-    return {type:'hanzi', w:w.w, py:w.py, e1:w.e1, e2:w.e2};
+    if(w.type==='chinese-word') return {type:'word', w:w.w, py:w.py || getPinyin(w.w)};
+    return {type:'hanzi', w:w.w, py:w.py || getPinyin(w.w), e1:w.e1, e2:w.e2};
   });
   openPrint(queueItems);
 }
