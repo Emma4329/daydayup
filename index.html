@@ -126,6 +126,7 @@ select,input[type=text],input[type=number]{width:100%;padding:12px;border:2px so
 .word-tag{background:#fff;border:1px solid var(--border);border-radius:10px;padding:8px 12px;font-size:14px;font-weight:700;cursor:pointer;position:relative;}
 .word-tag .py{font-size:11px;color:var(--text-light);font-weight:400;display:block;text-align:center;}
 .word-tag.reading{background:var(--primary-light);}
+.wrong-date{font-size:11px;color:var(--text-light);font-weight:400;text-align:center;margin-top:4px;line-height:1.2;white-space:nowrap;}
 .action-row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
 .edit-bar{display:flex;gap:6px;align-items:center;}
 .mini-btn{background:var(--primary-light);color:var(--primary-dark);border:none;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700;cursor:pointer;}
@@ -134,6 +135,9 @@ select,input[type=text],input[type=number]{width:100%;padding:12px;border:2px so
 .modal.open{display:flex;}
 .modal-card{background:#fff;border-radius:16px;width:100%;max-width:420px;max-height:85vh;overflow:auto;padding:16px;}
 .modal-title{font-size:17px;font-weight:800;margin-bottom:12px;}
+.modal-title-extra{display:none;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin:-4px 0 12px auto;}
+.modal-title-extra .btn{white-space:nowrap;}
+.modal-title-extra .btn[disabled]{opacity:.45;cursor:not-allowed;}
 .form-group{margin-bottom:12px;}
 .check-row{display:flex;align-items:center;gap:8px;padding:8px 0;}
 .check-row input{width:20px;height:20px;}
@@ -159,8 +163,13 @@ select,input[type=text],input[type=number]{width:100%;padding:12px;border:2px so
 .control-btn .icon{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;background:var(--bg);border:1px solid var(--border);}
 .control-btn .icon.big{width:72px;height:72px;font-size:32px;background:var(--primary);color:#fff;border:none;}
 /* 听写结束核对弹窗 */
-.review-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:10px;}
+.review-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;gap:10px;flex-wrap:wrap;}
+.review-top-main{flex:1 1 auto;min-width:0;}
+.review-top-btns{display:flex;align-items:center;gap:8px;flex:0 0 auto;flex-wrap:wrap;justify-content:flex-end;}
+.review-top-btns .btn{white-space:nowrap;}
+.review-top-btns .btn[disabled]{opacity:.45;cursor:not-allowed;}
 .review-title{font-weight:700;color:var(--text);font-size:15px;}
+.review-sub{font-size:12px;color:var(--text-light);font-weight:400;margin-top:2px;}
 .review-list{max-height:55vh;overflow-y:auto;-webkit-overflow-scrolling:touch;border-top:1px solid var(--border);border-bottom:1px solid var(--border);}
 .review-row{display:flex;align-items:flex-start;gap:10px;padding:12px 4px;border-bottom:1px solid var(--border);}
 .review-row:last-child{border-bottom:none;}
@@ -488,6 +497,7 @@ select,input[type=text],input[type=number]{width:100%;padding:12px;border:2px so
 <div class="modal" id="commonModal">
   <div class="modal-card">
     <div class="modal-title" id="modalTitle">标题</div>
+    <div class="modal-title-extra" id="modalTitleExtra"></div>
     <div id="modalBody"></div>
     <div class="row" style="margin-top:14px;">
       <button class="btn btn-outline" style="flex:1;" onclick="closeModal()">取消</button>
@@ -631,14 +641,21 @@ let HANZI_PY_MAP = {}; // 生字→拼音映射,用于组词显示拼音
 
 // ============ 通用弹窗 ============
 let modalCallback = null;
-function openModal(title, bodyHtml, okText, callback){
+function openModal(title, bodyHtml, okText, callback, titleExtraHtml){
   document.getElementById('modalTitle').textContent = title;
+  const extra = document.getElementById('modalTitleExtra');
+  if(extra){ extra.innerHTML = titleExtraHtml || ''; extra.style.display = titleExtraHtml ? 'flex' : 'none'; }
   document.getElementById('modalBody').innerHTML = bodyHtml;
   document.getElementById('modalOk').textContent = okText || '确定';
   modalCallback = callback;
   document.getElementById('commonModal').classList.add('open');
 }
 function closeModal(){ document.getElementById('commonModal').classList.remove('open'); }
+// 更新（或重建）弹窗标题行上的附加按钮区
+function setModalTitleExtra(html){
+  const extra = document.getElementById('modalTitleExtra');
+  if(extra){ extra.innerHTML = html || ''; extra.style.display = html ? 'flex' : 'none'; }
+}
 document.getElementById('modalOk').onclick = function(){ if(modalCallback) modalCallback(); };
 
 function switchPage(name){
@@ -2025,10 +2042,16 @@ function addReviewItemToWrong(item){
 function openDictationReview(){
   const selected = new Set();
   let selecting = false;
+  // 标题行右侧的按钮区：加入错题本 + 再次听写本次错题
+  const buildTitleExtra = () => {
+    const wrongCnt = dictationSessionWrong.size;
+    return `<button class="btn btn-sm ${selecting?'btn-green':'btn-outline'}" id="reviewToggleBtn">${selecting?'确认加入错题本':'加入错题本'}</button>
+      <button class="btn btn-sm btn-green" id="reviewRedoBtn"${wrongCnt?'':' disabled'}>🔁 再次听写本次错题</button>`;
+  };
   const buildReviewHTML = () => {
+    const wrongCnt = dictationSessionWrong.size;
     const top = `<div class="review-top">
-      <span class="review-title">本次共 ${dictationQueue.length} 项 · 已加入错题本 ${dictationSessionWrong.size} 项</span>
-      <button class="btn btn-sm ${selecting?'btn-green':'btn-outline'}" id="reviewToggleBtn">${selecting?'确认加入错题本':'加入错题本'}</button>
+      <span class="review-title">本次共 ${dictationQueue.length} 项 · 已加入错题本 ${wrongCnt} 项</span>
     </div>`;
     const list = dictationQueue.map((item,i)=>{
       const isRed = dictationSessionWrong.has(item.w);
@@ -2049,7 +2072,7 @@ function openDictationReview(){
     }).join('');
     return `<div>${top}<div class="review-list">${list}</div></div>`;
   };
-  openModal('听写核对', buildReviewHTML(), '关闭', ()=>{ closeModal(); });
+  openModal('听写核对', buildReviewHTML(), '关闭', ()=>{ closeModal(); }, buildTitleExtra());
   const bindToggle = () => {
     const btn = document.getElementById('reviewToggleBtn');
     if(btn) btn.onclick = () => {
@@ -2063,8 +2086,10 @@ function openDictationReview(){
         selecting = true;
       }
       document.getElementById('modalBody').innerHTML = buildReviewHTML();
+      setModalTitleExtra(buildTitleExtra());
       bindToggle();
       bindChecks();
+      bindRedo();
     };
   };
   const bindChecks = () => {
@@ -2075,8 +2100,37 @@ function openDictationReview(){
       };
     });
   };
+  const bindRedo = () => {
+    const btn = document.getElementById('reviewRedoBtn');
+    if(btn) btn.onclick = () => { redoSessionWrong(); };
+  };
   bindToggle();
   bindChecks();
+  bindRedo();
+}
+// 只把「本次听写中加入错题本」的字/词重新组队再听写一遍
+function redoSessionWrong(){
+  if(!dictationSessionWrong || dictationSessionWrong.size === 0){
+    alert('本次还没有加入错题本的字词');
+    return;
+  }
+  const queue = dictationQueue.filter(item => dictationSessionWrong.has(item.w));
+  if(queue.length === 0){
+    alert('本次还没有加入错题本的字词');
+    return;
+  }
+  closeModal();
+  dictationStop();
+  dictationQueue = JSON.parse(JSON.stringify(queue));
+  dictationIndex = 0;
+  dictationPaused = false;
+  dictationPlaying = false;
+  dictationRevealed = false;
+  dictationSessionWrong = new Set();
+  clearTimeout(dictationTimer);
+  switchPage('dictation');
+  renderDictationItem();
+  dictationSpeakCurrent();
 }
 function renderSettingOptions(id, values, current, cb){
   const labels = {3000:'3秒',5000:'5秒',8000:'8秒',12000:'12秒',0.5:'0.5x',0.75:'0.75x',1:'1.0x'};
@@ -2588,6 +2642,7 @@ function renderWrong(){
         ${w.count > 1 ? `<span class="wrong-count" style="position:absolute;top:4px;right:6px;background:var(--red);color:#fff;border-radius:8px;padding:1px 6px;font-size:11px;font-weight:800;line-height:1;">${w.count}</span>` : ''}
         <div class="py" style="font-size:12px;margin-bottom:2px;">${toneMark((w.py && w.py!==w.w) ? w.py : getPinyin(w.w)) || w.w}</div>
         <div style="font-size:18px;font-weight:800;">${w.w}</div>
+        ${fmtDateCn(w.ts) ? `<div class="wrong-date">${fmtDateCn(w.ts)}</div>` : ''}
       </div>
     `).join('')}</div>`;
   } else {
@@ -2595,8 +2650,8 @@ function renderWrong(){
       <div class="list-item" style="align-items:flex-start;">
         <div style="flex:1;min-width:0;">
           ${w.photo
-            ? `<img src="${w.photo}" style="max-width:100%;max-height:240px;border-radius:10px;border:1px solid var(--border);display:block;">${w.ocrText ? `<div class="ocr-result">${escapeHtml(w.ocrText)}</div>` : ''}${w.count>1?`<div style="margin-top:4px;"><span style="display:inline-block;background:var(--red);color:#fff;border-radius:8px;padding:1px 6px;font-size:11px;font-weight:800;">错 ${w.count} 次</span></div>`:''}`
-            : `<div class="name">${wrongDisplayText(w)}${w.count > 1 ? ` <span style="display:inline-block;background:var(--red);color:#fff;border-radius:8px;padding:1px 6px;font-size:11px;font-weight:800;">${w.count}</span>` : ''}</div><div class="meta">${wrongDisplayAns(w)}</div>`
+            ? `<img src="${w.photo}" style="max-width:100%;max-height:240px;border-radius:10px;border:1px solid var(--border);display:block;">${w.ocrText ? `<div class="ocr-result">${escapeHtml(w.ocrText)}</div>` : ''}${w.count>1?`<div style="margin-top:4px;"><span style="display:inline-block;background:var(--red);color:#fff;border-radius:8px;padding:1px 6px;font-size:11px;font-weight:800;">错 ${w.count} 次</span></div>`:''}${fmtDateCn(w.ts)?`<div class="wrong-date" style="text-align:left;margin-top:4px;">${fmtDateCn(w.ts)} 加入</div>`:''}`
+            : `<div class="name">${wrongDisplayText(w)}${w.count > 1 ? ` <span style="display:inline-block;background:var(--red);color:#fff;border-radius:8px;padding:1px 6px;font-size:11px;font-weight:800;">${w.count}</span>` : ''}</div><div class="meta">${wrongDisplayAns(w)}</div>${fmtDateCn(w.ts)?`<div class="wrong-date" style="text-align:left;margin-top:2px;">${fmtDateCn(w.ts)} 加入</div>`:''}`
           }
         </div>
         <button class="del" style="margin-left:8px;flex-shrink:0;" onclick="delWrongItem(${i})">删除</button>
@@ -2738,6 +2793,19 @@ function prevEnglish(){ enIdx--; renderEnglish(); }
 
 // ============ 打卡 ============
 function todayStr(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+// 时间戳 → 友好日期（今天/昨天/M月D日）
+function fmtDateCn(ts){
+  if(!ts) return '';
+  const d = new Date(ts);
+  if(isNaN(d.getTime())) return '';
+  const t = new Date();
+  const startOf = x => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diffDays = Math.round((startOf(t) - startOf(d)) / 86400000);
+  if(diffDays === 0) return '今天';
+  if(diffDays === 1) return '昨天';
+  if(d.getFullYear() === t.getFullYear()) return `${d.getMonth()+1}月${d.getDate()}日`;
+  return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`;
+}
 function doCheckin(){
   const arr=load(LS.checkin,[]);
   const t=todayStr();
