@@ -127,16 +127,20 @@ select,input[type=text],input[type=number]{width:100%;padding:12px;border:2px so
 .word-tag .py{font-size:11px;color:var(--text-light);font-weight:400;display:block;text-align:center;}
 .word-tag.reading{background:var(--primary-light);}
 .wrong-date{font-size:11px;color:var(--text-light);font-weight:400;text-align:center;margin-top:4px;line-height:1.2;white-space:nowrap;}
+/* 错题本按日期分组标题 */
+.wrong-group-head{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:800;color:var(--primary-dark);margin:14px 0 8px;padding-left:2px;}
+.wrong-group-head:first-child{margin-top:2px;}
+.wrong-group-num{display:inline-block;background:var(--primary-light);color:var(--primary-dark);border-radius:8px;padding:1px 7px;font-size:11px;font-weight:800;line-height:1.5;}
 .action-row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
 .edit-bar{display:flex;gap:6px;align-items:center;}
 .mini-btn{background:var(--primary-light);color:var(--primary-dark);border:none;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700;cursor:pointer;}
 .mini-btn.red{background:#ffe5e5;color:var(--red);}
-.modal{position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:100;display:none;align-items:center;justify-content:center;padding:14px;}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:100;display:none;align-items:center;justify-content:center;padding:14px;box-sizing:border-box;overflow:hidden;}
 .modal.open{display:flex;}
-.modal-card{background:#fff;border-radius:16px;width:100%;max-width:420px;max-height:85vh;overflow:auto;padding:16px;}
+.modal-card{background:#fff;border-radius:16px;width:100%;max-width:min(420px,100%);flex-basis:100%;align-self:center;max-height:88vh;overflow-y:auto;overflow-x:hidden;padding:16px;-webkit-overflow-scrolling:touch;box-sizing:border-box;flex-shrink:1;min-width:0;}
 .modal-title{font-size:17px;font-weight:800;margin-bottom:12px;}
-.modal-title-extra{display:none;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin:-4px 0 12px auto;}
-.modal-title-extra .btn{white-space:nowrap;}
+.modal-title-extra{display:none;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-start;margin:0 0 12px 0;width:100%;min-width:0;}
+.modal-title-extra .btn{white-space:nowrap;flex:0 1 auto;min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;}
 .modal-title-extra .btn[disabled]{opacity:.45;cursor:not-allowed;}
 .form-group{margin-bottom:12px;}
 .check-row{display:flex;align-items:center;gap:8px;padding:8px 0;}
@@ -163,12 +167,13 @@ select,input[type=text],input[type=number]{width:100%;padding:12px;border:2px so
 .control-btn .icon{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;background:var(--bg);border:1px solid var(--border);}
 .control-btn .icon.big{width:72px;height:72px;font-size:32px;background:var(--primary);color:#fff;border:none;}
 /* 听写结束核对弹窗 */
-.review-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;gap:10px;flex-wrap:wrap;}
+.review-top{display:flex;justify-content:flex-start;align-items:center;margin-bottom:10px;gap:10px;flex-wrap:wrap;min-width:0;}
 .review-top-main{flex:1 1 auto;min-width:0;}
-.review-top-btns{display:flex;align-items:center;gap:8px;flex:0 0 auto;flex-wrap:wrap;justify-content:flex-end;}
-.review-top-btns .btn{white-space:nowrap;}
+.review-top-btns{display:flex;align-items:center;gap:8px;flex:0 1 auto;flex-wrap:wrap;justify-content:flex-start;min-width:0;}
+.review-top-btns .btn{white-space:nowrap;flex:0 1 auto;min-width:0;}
 .review-top-btns .btn[disabled]{opacity:.45;cursor:not-allowed;}
 .review-title{font-weight:700;color:var(--text);font-size:15px;}
+.review-title.review-title-main{font-size:16px;display:block;margin-bottom:2px;}
 .review-sub{font-size:12px;color:var(--text-light);font-weight:400;margin-top:2px;}
 .review-list{max-height:55vh;overflow-y:auto;-webkit-overflow-scrolling:touch;border-top:1px solid var(--border);border-bottom:1px solid var(--border);}
 .review-row{display:flex;align-items:flex-start;gap:10px;padding:12px 4px;border-bottom:1px solid var(--border);}
@@ -1969,6 +1974,7 @@ function dictationBack(){
 function wrongKey(w){
   if(w.type==='math-photo') return 'photo|'+w.ts; // 每张照片唯一，不合并
   if(w.type==='math') return (w.type||'')+'|'+w.text+'|'+(w.ans||'');
+  if(w.type==='english') return 'english|'+(w.text||w.w||'')+'|'+(w.ans||''); // 英语用 text/ans 做键，避免全部并成一条
   return (w.type||'')+'|'+(w.w||'')+'|'+(w.py||'');
 }
 function migrateWrongData(){
@@ -2635,27 +2641,50 @@ function renderWrong(){
     return;
   }
   document.getElementById('wrongEmpty').style.display='none';
-  if(hasChinese){
-    box.innerHTML = `<div class="word-grid">${arr.map(({w,i})=>`
-      <div class="word-tag" style="position:relative;padding-top:22px;min-width:72px;text-align:center;cursor:pointer;" onclick="event.stopPropagation();">
-        <input type="checkbox" ${wrongSelections.has(i)?'checked':''} style="position:absolute;top:6px;left:6px;width:18px;height:18px;cursor:pointer;" onchange="event.stopPropagation();toggleWrongSelect(${i})">
-        ${w.count > 1 ? `<span class="wrong-count" style="position:absolute;top:4px;right:6px;background:var(--red);color:#fff;border-radius:8px;padding:1px 6px;font-size:11px;font-weight:800;line-height:1;">${w.count}</span>` : ''}
-        <div class="py" style="font-size:12px;margin-bottom:2px;">${toneMark((w.py && w.py!==w.w) ? w.py : getPinyin(w.w)) || w.w}</div>
-        <div style="font-size:18px;font-weight:800;">${w.w}</div>
-        ${fmtDateCn(w.ts) ? `<div class="wrong-date">${fmtDateCn(w.ts)}</div>` : ''}
-      </div>
-    `).join('')}</div>`;
+  // 按加入日期分组（同一天归到一组），日期作为分组标题
+  // 用 yyyy-m-d 作为归并键，保证按次数排序时同一天也不会被拆成多组
+  const dateKeyOf = it => { const t = new Date(it.w.ts); return isNaN(t.getTime()) ? '0000-0-0' : `${t.getFullYear()}-${t.getMonth()+1}-${t.getDate()}`; };
+  const groups = [];
+  const gmap = new Map();
+  arr.forEach(item=>{
+    const dk = dateKeyOf(item);
+    if(!gmap.has(dk)){ const g={dk, key: fmtDateCn(item.w.ts) || '更早', items:[], order: new Date(item.w.ts).getTime()||0}; gmap.set(dk, g); groups.push(g); }
+    gmap.get(dk).items.push(item);
+  });
+  // 组间：按时间排序时用最新时间倒序；按次数排序时用组内最大次数倒序
+  groups.forEach(g=>{ g.maxCount = Math.max(...g.items.map(x=>x.w.count||1)); });
+  if(wrongSort === 'count'){
+    groups.sort((a,b)=> (b.maxCount - a.maxCount) || (b.order - a.order));
   } else {
-    box.innerHTML=arr.map(({w,i})=>`
-      <div class="list-item" style="align-items:flex-start;">
-        <div style="flex:1;min-width:0;">
-          ${w.photo
-            ? `<img src="${w.photo}" style="max-width:100%;max-height:240px;border-radius:10px;border:1px solid var(--border);display:block;">${w.ocrText ? `<div class="ocr-result">${escapeHtml(w.ocrText)}</div>` : ''}${w.count>1?`<div style="margin-top:4px;"><span style="display:inline-block;background:var(--red);color:#fff;border-radius:8px;padding:1px 6px;font-size:11px;font-weight:800;">错 ${w.count} 次</span></div>`:''}${fmtDateCn(w.ts)?`<div class="wrong-date" style="text-align:left;margin-top:4px;">${fmtDateCn(w.ts)} 加入</div>`:''}`
-            : `<div class="name">${wrongDisplayText(w)}${w.count > 1 ? ` <span style="display:inline-block;background:var(--red);color:#fff;border-radius:8px;padding:1px 6px;font-size:11px;font-weight:800;">${w.count}</span>` : ''}</div><div class="meta">${wrongDisplayAns(w)}</div>${fmtDateCn(w.ts)?`<div class="wrong-date" style="text-align:left;margin-top:2px;">${fmtDateCn(w.ts)} 加入</div>`:''}`
-          }
+    groups.sort((a,b)=> b.order - a.order);
+  }
+  const groupHead = g => `<div class="wrong-group-head">${g.key}<span class="wrong-group-num">${g.items.length}</span></div>`;
+  if(hasChinese){
+    box.innerHTML = groups.map(g=>`
+      ${groupHead(g)}
+      <div class="word-grid">${g.items.map(({w,i})=>`
+        <div class="word-tag" style="position:relative;padding-top:22px;min-width:72px;text-align:center;cursor:pointer;" onclick="event.stopPropagation();">
+          <input type="checkbox" ${wrongSelections.has(i)?'checked':''} style="position:absolute;top:6px;left:6px;width:18px;height:18px;cursor:pointer;" onchange="event.stopPropagation();toggleWrongSelect(${i})">
+          ${w.count > 1 ? `<span class="wrong-count" style="position:absolute;top:4px;right:6px;background:var(--red);color:#fff;border-radius:8px;padding:1px 6px;font-size:11px;font-weight:800;line-height:1;">${w.count}</span>` : ''}
+          <div class="py" style="font-size:12px;margin-bottom:2px;">${toneMark((w.py && w.py!==w.w) ? w.py : getPinyin(w.w)) || w.w}</div>
+          <div style="font-size:18px;font-weight:800;">${w.w}</div>
         </div>
-        <button class="del" style="margin-left:8px;flex-shrink:0;" onclick="delWrongItem(${i})">删除</button>
-      </div>
+      `).join('')}</div>
+    `).join('');
+  } else {
+    box.innerHTML = groups.map(g=>`
+      ${groupHead(g)}
+      ${g.items.map(({w,i})=>`
+        <div class="list-item" style="align-items:flex-start;">
+          <div style="flex:1;min-width:0;">
+            ${w.photo
+              ? `<img src="${w.photo}" style="max-width:100%;max-height:240px;border-radius:10px;border:1px solid var(--border);display:block;">${w.ocrText ? `<div class="ocr-result">${escapeHtml(w.ocrText)}</div>` : ''}${w.count>1?`<div style="margin-top:4px;"><span style="display:inline-block;background:var(--red);color:#fff;border-radius:8px;padding:1px 6px;font-size:11px;font-weight:800;">错 ${w.count} 次</span></div>`:''}`
+              : `<div class="name">${wrongDisplayText(w)}${w.count > 1 ? ` <span style="display:inline-block;background:var(--red);color:#fff;border-radius:8px;padding:1px 6px;font-size:11px;font-weight:800;">${w.count}</span>` : ''}</div><div class="meta">${wrongDisplayAns(w)}</div>`
+            }
+          </div>
+          <button class="del" style="margin-left:8px;flex-shrink:0;" onclick="delWrongItem(${i})">删除</button>
+        </div>
+      `).join('')}
     `).join('');
   }
 }
