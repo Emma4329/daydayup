@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#FF8A3D">
-<!-- build: daydayup-deploy 2026-08-30T15:00:36+08:00 -->
+<!-- build: daydayup-deploy 2026-08-30T15:08:11+08:00 -->
 <title>天天向上 · 小学生学习平台</title>
 <style>
 :root {
@@ -2563,9 +2563,9 @@ function renderCheckinTasks(){
       <button class="task-btn ${data.done[ts.key]?'done':''}" onclick="toggleTask('${ts.key}')">${data.done[ts.key]?'已完成 ✓':'未完成'}</button>
     </div>
   `).join('');
+  updateAllDoneReward(data);
   const total = document.getElementById('taskStarTotal');
   if(total) total.textContent = (parkPoints||0) + ' ⭐';
-  updateAllDoneReward(data);
 }
 function toggleTask(key){
   const data = loadTasks();
@@ -2617,6 +2617,8 @@ function parkAddPoints(n){
   save(LS.points, parkPoints);
   const el = document.getElementById('parkPoints');
   if(el) el.textContent = parkPoints;
+  const taskTotal = document.getElementById('taskStarTotal');
+  if(taskTotal) taskTotal.textContent = (parkPoints||0) + ' ⭐';
 }
 function renderPlayground(){
   parkAddPoints(0);
