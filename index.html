@@ -17,9 +17,8 @@
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column;min-height:100vh;}
-.top-bar{background:linear-gradient(135deg,var(--primary-dark),var(--primary));color:#fff;padding:16px 18px;position:sticky;top:0;z-index:50;box-shadow:0 2px 10px rgba(242,112,28,0.3);}
-.top-bar h1{font-size:20px;font-weight:800;letter-spacing:1px;}
-.top-bar .sub{font-size:12px;opacity:0.9;margin-top:2px;}
+.top-bar{background:linear-gradient(135deg,var(--primary-dark),var(--primary));color:#fff;padding:10px 18px;position:sticky;top:0;z-index:50;box-shadow:0 2px 10px rgba(242,112,28,0.3);text-align:center;}
+.top-bar #topDate{font-size:16px;font-weight:800;letter-spacing:1px;}
 .main{flex:1;padding:14px 14px 90px;max-width:560px;margin:0 auto;width:100%;}
 .card{background:var(--card);border-radius:16px;padding:16px;margin-bottom:14px;box-shadow:var(--shadow);border:1px solid var(--border);}
 .card-title{font-size:16px;font-weight:800;display:flex;align-items:center;gap:8px;margin-bottom:12px;}
@@ -127,6 +126,13 @@ select,input[type=text],input[type=number]{width:100%;padding:12px;border:2px so
 .print-grid{display:flex;flex-wrap:wrap;gap:10px;}
 .print-cell{border:1px solid #ddd;border-radius:8px;padding:10px 14px;font-size:16px;font-weight:700;min-width:80px;text-align:center;}
 .print-cell .pinyin{font-size:12px;color:#666;font-weight:400;display:block;}
+.tianzi-cell{width:80px;height:80px;border:1.5px solid #333;border-radius:4px;display:flex;flex-direction:column;overflow:hidden;background:#fff;}
+.tianzi-cell.word{width:120px;height:70px;}
+.tianzi-cell .tz-pinyin{height:24px;line-height:24px;font-size:13px;color:#333;text-align:center;font-weight:500;border-bottom:1px solid #333;background:#fafafa;}
+.tianzi-cell .tz-grid{flex:1;position:relative;}
+.tianzi-cell .tz-grid::before,.tianzi-cell .tz-grid::after{content:'';position:absolute;background:#999;}
+.tianzi-cell .tz-grid::before{top:50%;left:0;right:0;height:1px;}
+.tianzi-cell .tz-grid::after{top:0;bottom:0;left:50%;width:1px;}
 @media print{
   .top-bar,.bottom-nav,.btn,.no-print{display:none!important;}
   .main{padding:0;max-width:none;}
@@ -138,8 +144,7 @@ select,input[type=text],input[type=number]{width:100%;padding:12px;border:2px so
 </head>
 <body>
 <div class="top-bar">
-  <h1>🚀 天天向上</h1>
-  <div class="sub">小学生学习平台 · 口算 · 语文 · 英语</div>
+  <div id="topDate">2026年8月28日 周五</div>
 </div>
 
 <div class="main">
@@ -265,6 +270,27 @@ select,input[type=text],input[type=number]{width:100%;padding:12px;border:2px so
     <div class="print-sheet" id="printSheet"></div>
   </div>
 
+  <!-- 打印选择 -->
+  <div class="page" id="page-print-select">
+    <div class="card dictation-select-card">
+      <div class="dictation-select-header">
+        <div class="card-title" style="margin-bottom:10px;">🖨️ 选择打印内容</div>
+        <div class="section-title" style="margin-top:0;">打印内容</div>
+        <div class="row" style="margin-bottom:10px;">
+          <span class="chip active" id="pchkHanzi" onclick="togglePrintType('hanzi')">生字</span>
+          <span class="chip active" id="pchkWords" onclick="togglePrintType('words')">词语</span>
+          <span class="chip" id="pchkPoem" onclick="togglePrintType('poem')">古诗全文</span>
+        </div>
+        <div class="count-bar" id="printCount">已选 0 项</div>
+        <div class="row" style="margin-bottom:0;">
+          <button class="btn btn-outline" style="flex:1;" onclick="backToChinese()">返回</button>
+          <button class="btn btn-blue" style="flex:1;" onclick="startPrint()">开始打印</button>
+        </div>
+      </div>
+      <div id="printTree" class="dictation-tree-scroll"></div>
+    </div>
+  </div>
+
   <!-- 英语 -->
   <div class="page" id="page-english">
     <div class="card">
@@ -289,12 +315,17 @@ select,input[type=text],input[type=number]{width:100%;padding:12px;border:2px so
   <div class="page" id="page-wrong">
     <div class="card">
       <div class="card-title">📕 错题本 <span class="badge" id="wrongCount">0</span></div>
+      <div class="seg" style="margin-bottom:12px;">
+        <span class="chip wrong-tab-chip active" data-wtab="chinese" onclick="switchWrongTab('chinese')">语文</span>
+        <span class="chip wrong-tab-chip" data-wtab="math" onclick="switchWrongTab('math')">数学</span>
+        <span class="chip wrong-tab-chip" data-wtab="english" onclick="switchWrongTab('english')">英语</span>
+      </div>
       <div class="row" id="wrongActions" style="margin-bottom:12px;display:none;">
         <button class="btn btn-green" style="flex:1;" onclick="dictateSelectedWrong()">🎧 去听写</button>
         <button class="btn btn-blue" style="flex:1;" onclick="printSelectedWrong()">🖨️ 去打印</button>
       </div>
       <div id="wrongList"></div>
-      <div class="empty-tip" id="wrongEmpty">还没有错题，真棒！做完口算练习，答错的题会自动收藏在这里。</div>
+      <div class="empty-tip" id="wrongEmpty">还没有错题，真棒！</div>
     </div>
   </div>
 
@@ -311,8 +342,8 @@ select,input[type=text],input[type=number]{width:100%;padding:12px;border:2px so
 </div>
 
 <div class="bottom-nav" id="bottomNav">
-  <div class="nav-item active" data-page="math"><span class="ni">🧮</span>口算</div>
-  <div class="nav-item" data-page="chinese"><span class="ni">📖</span>语文</div>
+  <div class="nav-item active" data-page="chinese"><span class="ni">📖</span>语文</div>
+  <div class="nav-item" data-page="math"><span class="ni">🧮</span>数学</div>
   <div class="nav-item" data-page="english"><span class="ni">🔤</span>英语</div>
   <div class="nav-item" data-page="wrong"><span class="ni">📕</span>错题</div>
   <div class="nav-item" data-page="checkin"><span class="ni">✅</span>打卡</div>
@@ -369,6 +400,11 @@ function toneMark(py){
   if(!arr) return s;
   return s.slice(0,pos) + arr[tone-1] + s.slice(pos+1);
 }
+function updateTopDate(){
+  const d = new Date();
+  const weekdays = ['周日','周一','周二','周三','周四','周五','周六'];
+  document.getElementById('topDate').textContent = `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日 ${weekdays[d.getDay()]}`;
+}
 
 const DEFAULT_CHINESE = {"3-1":{"name":"三年级上册","units":[{"name":"第一单元","lessons":[{"name":"1 大青树下的小学","hanzi":[{"w":"坡","py":"pō","e1":"坡的坡","e2":""},{"w":"球","py":"qiú","e1":"球的球","e2":""},{"w":"招","py":"zhāo","e1":"招的招","e2":""},{"w":"呼","py":"hū","e1":"呼的呼","e2":""},{"w":"飘","py":"piāo","e1":"飘的飘","e2":""},{"w":"扬","py":"yáng","e1":"扬的扬","e2":""},{"w":"读","py":"dú","e1":"读的读","e2":""},{"w":"热","py":"rè","e1":"热的热","e2":""},{"w":"闹","py":"nào","e1":"闹的闹","e2":""},{"w":"粗","py":"cū","e1":"粗的粗","e2":""},{"w":"壮","py":"zhuàng","e1":"壮的壮","e2":""},{"w":"洁","py":"jié","e1":"洁的洁","e2":""}],"words":[{"w":"山坡","py":"shānpō"},{"w":"学校","py":"xuéxiào"},{"w":"飘扬","py":"piāoyáng"},{"w":"课文","py":"kèwén"},{"w":"声音","py":"shēngyīn"},{"w":"招引","py":"zhāoyǐn"},{"w":"热闹","py":"rènào"},{"w":"古老","py":"gǔlǎo"},{"w":"粗壮","py":"cūzhuàng"},{"w":"枝干","py":"zhīgàn"},{"w":"洁白","py":"jiébái"}]},{"name":"2 花的学校","hanzi":[{"w":"轰","py":"hōng","e1":"轰的轰","e2":""},{"w":"湿","py":"shī","e1":"湿的湿","e2":""},{"w":"润","py":"rùn","e1":"润的润","e2":""},{"w":"笛","py":"dí","e1":"笛的笛","e2":""},{"w":"狂","py":"kuáng","e1":"狂的狂","e2":""},{"w":"功","py":"gōng","e1":"功的功","e2":""},{"w":"罚","py":"fá","e1":"罚的罚","e2":""},{"w":"互","py":"hù","e1":"互的互","e2":""},{"w":"碰","py":"pèng","e1":"碰的碰","e2":""},{"w":"黄","py":"huáng","e1":"黄的黄","e2":""},{"w":"急","py":"jí","e1":"急的急","e2":""}],"words":[{"w":"轰响","py":"hōngxiǎng"},{"w":"阵雨","py":"zhènyǔ"},{"w":"湿润","py":"shīrùn"},{"w":"风笛","py":"fēngdí"},{"w":"狂欢","py":"kuánghuān"},{"w":"觉得","py":"juéde"},{"w":"功课","py":"gōngkè"},{"w":"放学","py":"fàngxué"},{"w":"老师","py":"lǎoshī"},{"w":"急急忙忙","py":"jíjímángmáng"}]},{"name":"3* 不懂就要问","hanzi":[],"words":[]}],"poems":[]},{"name":"第二单元","lessons":[{"name":"4 古诗三首","hanzi":[{"w":"庭","py":"tíng","e1":"庭的庭","e2":""},{"w":"相","py":"xiāng","e1":"相的相","e2":""},{"w":"未","py":"wèi","e1":"未的未","e2":""},{"w":"寒","py":"hán","e1":"寒的寒","e2":""},{"w":"径","py":"jìng","e1":"径的径","e2":""},{"w":"斜","py":"xié","e1":"斜的斜","e2":""},{"w":"枫","py":"fēng","e1":"枫的枫","e2":""},{"w":"霜","py":"shuāng","e1":"霜的霜","e2":""},{"w":"挑","py":"tiāo","e1":"挑的挑","e2":""},{"w":"深","py":"shēn","e1":"深的深","e2":""},{"w":"落","py":"luò","e1":"落的落","e2":""}],"words":[]},{"name":"5 铺满金色巴掌的水泥道","hanzi":[{"w":"朗","py":"lǎng","e1":"朗的朗","e2":""},{"w":"晶","py":"jīng","e1":"晶的晶","e2":""},{"w":"珠","py":"zhū","e1":"珠的珠","e2":""},{"w":"粘","py":"zhān","e1":"粘的粘","e2":""},{"w":"印","py":"yìn","e1":"印的印","e2":""},{"w":"案","py":"àn","e1":"案的案","e2":""},{"w":"展","py":"zhǎn","e1":"展的展","e2":""},{"w":"列","py":"liè","e1":"列的列","e2":""},{"w":"规","py":"guī","e1":"规的规","e2":""},{"w":"则","py":"zé","e1":"则的则","e2":""},{"w":"凌","py":"líng","e1":"凌的凌","e2":""},{"w":"乱","py":"luàn","e1":"乱的乱","e2":""}],"words":[{"w":"秋风","py":"qiūfēng"},{"w":"放晴","py":"fàngqíng"},{"w":"明朗","py":"mínglǎng"},{"w":"地面","py":"dìmiàn"},{"w":"亮晶晶","py":"liàngjīngjīng"},{"w":"落叶","py":"luòyè"},{"w":"图案","py":"túàn"},{"w":"闪闪发光","py":"shǎnshǎnfāguāng"},{"w":"尽头","py":"jìntóu"},{"w":"排列","py":"páiliè"},{"w":"规则","py":"guīzé"},{"w":"凌乱","py":"língluàn"},{"w":"歌唱","py":"gēchàng"},{"w":"迟到","py":"chídào"}]},{"name":"6 秋天的雨","hanzi":[{"w":"凉","py":"liáng","e1":"凉的凉","e2":""},{"w":"杏","py":"xìng","e1":"杏的杏","e2":""},{"w":"枚","py":"méi","e1":"枚的枚","e2":""},{"w":"邮","py":"yóu","e1":"邮的邮","e2":""},{"w":"票","py":"piào","e1":"票的票","e2":""},{"w":"爽","py":"shuǎng","e1":"爽的爽","e2":""},{"w":"挤","py":"jǐ","e1":"挤的挤","e2":""},{"w":"争","py":"zhēng","e1":"争的争","e2":""},{"w":"菊","py":"jú","e1":"菊的菊","e2":""},{"w":"频","py":"pín","e1":"频的频","e2":""},{"w":"勾","py":"gōu","e1":"勾的勾","e2":""},{"w":"挖","py":"wā","e1":"挖的挖","e2":""},{"w":"油","py":"yóu","e1":"油的油","e2":""}],"words":[{"w":"秋天","py":"qiūtiān"},{"w":"清凉","py":"qīngliáng"},{"w":"炎热","py":"yánrè"},{"w":"枫树","py":"fēngshù"},{"w":"邮票","py":"yóupiào"},{"w":"凉爽","py":"liángshuǎng"},{"w":"果树","py":"guǒshù"},{"w":"菊花","py":"júhuā"},{"w":"仙子","py":"xiānzi"},{"w":"频频","py":"pínpín"},{"w":"气味","py":"qìwèi"},{"w":"香甜","py":"xiāngtián"},{"w":"松果","py":"sōngguǒ"},{"w":"丰收","py":"fēngshōu"}]},{"name":"7* 听听，秋的声音","hanzi":[],"words":[]}],"poems":[{"name":"望洞庭","author":"刘禹锡","full":"湖光秋月两相和，潭面无风镜未磨。遥望洞庭山水翠，白银盘里一青螺。","hanzi":[],"words":[]},{"name":"山行","author":"杜牧","full":"远上寒山石径斜，白云生处有人家。停车坐爱枫林晚，霜叶红于二月花。","hanzi":[],"words":[]},{"name":"夜书所见","author":"叶绍翁","full":"萧萧梧叶送寒声，江上秋风动客情。知有儿童挑促织，夜深篱落一灯明。","hanzi":[],"words":[]}]},{"name":"第三单元","lessons":[{"name":"8 总也倒不了的老屋","hanzi":[{"w":"屋","py":"wū","e1":"屋的屋","e2":""},{"w":"板","py":"bǎn","e1":"板的板","e2":""},{"w":"准","py":"zhǔn","e1":"准的准","e2":""},{"w":"备","py":"bèi","e1":"备的备","e2":""},{"w":"等","py":"děng","e1":"等的等","e2":""},{"w":"暴","py":"bào","e1":"暴的暴","e2":""},{"w":"哦","py":"ó","e1":"哦的哦","e2":""},{"w":"钻","py":"zuān","e1":"钻的钻","e2":""},{"w":"爬","py":"pá","e1":"爬的爬","e2":""},{"w":"漂","py":"piāo","e1":"漂的漂","e2":""},{"w":"晒","py":"shài","e1":"晒的晒","e2":""}],"words":[{"w":"门板","py":"ménbǎn"},{"w":"准备","py":"zhǔnbèi"},{"w":"旁边","py":"pángbiān"},{"w":"暴风雨","py":"bàofēngyǔ"},{"w":"安心","py":"ānxīn"},{"w":"低头","py":"dītóu"},{"w":"吃力","py":"chīlì"},{"w":"再见","py":"zàijiàn"},{"w":"母鸡","py":"mǔjī"},{"w":"注意","py":"zhùyì"},{"w":"屋子","py":"wūzi"},{"w":"漂亮","py":"piàoliàng"},{"w":"意思","py":"yìsi"},{"w":"因此","py":"yīncǐ"}]},{"name":"9* 犟龟","hanzi":[],"words":[]},{"name":"10* 小狗学叫","hanzi":[],"words":[]},{"name":"语文园地三","hanzi":[{"w":"恒","py":"héng","e1":"恒的恒","e2":""},{"w":"圣","py":"shèng","e1":"圣的圣","e2":""},{"w":"萌","py":"méng","e1":"萌的萌","e2":""},{"w":"妥","py":"tuǒ","e1":"妥的妥","e2":""},{"w":"轴","py":"zhóu","e1":"轴的轴","e2":""},{"w":"阁","py":"gé","e1":"阁的阁","e2":""},{"w":"培","py":"péi","e1":"培的培","e2":""},{"w":"厘","py":"lí","e1":"厘的厘","e2":""}],"words":[{"w":"恒心","py":"héngxīn"},{"w":"神圣","py":"shénshèng"},{"w":"萌发","py":"méngfā"},{"w":"妥当","py":"tuǒdàng"},{"w":"车轴","py":"chēzhóu"},{"w":"阁楼","py":"gélóu"},{"w":"培植","py":"péizhí"},{"w":"厘米","py":"límǐ"}]}],"poems":[]},{"name":"第四单元","lessons":[{"name":"11 宝葫芦的秘密（节选）","hanzi":[{"w":"葫","py":"hú","e1":"葫的葫","e2":""},{"w":"芦","py":"lú","e1":"芦的芦","e2":""},{"w":"错","py":"cuò","e1":"错的错","e2":""},{"w":"普","py":"pǔ","e1":"普的普","e2":""},{"w":"宫","py":"gōng","e1":"宫的宫","e2":""},{"w":"肯","py":"kěn","e1":"肯的肯","e2":""},{"w":"冒","py":"mào","e1":"冒的冒","e2":""},{"w":"式","py":"shì","e1":"式的式","e2":""},{"w":"怜","py":"lián","e1":"怜的怜","e2":""}],"words":[{"w":"声明","py":"shēngmíng"},{"w":"神仙","py":"shénxiān"},{"w":"普通","py":"pǔtōng"},{"w":"让步","py":"ràngbù"},{"w":"条件","py":"tiáojiàn"},{"w":"指甲","py":"zhǐjiǎ"},{"w":"得到","py":"dédào"},{"w":"衣服","py":"yīfú"},{"w":"所以","py":"suǒyǐ"},{"w":"要是","py":"yàoshì"},{"w":"同学","py":"tóngxué"},{"w":"可怜","py":"kělián"},{"w":"最好","py":"zuìhǎo"},{"w":"科学","py":"kēxué"}]},{"name":"12 在牛肚子里旅行","hanzi":[{"w":"旅","py":"lǚ","e1":"旅的旅","e2":""},{"w":"另","py":"lìng","e1":"另的另","e2":""},{"w":"晴","py":"qíng","e1":"晴的晴","e2":""},{"w":"及","py":"jí","e1":"及的及","e2":""},{"w":"卷","py":"juǎn","e1":"卷的卷","e2":""},{"w":"救","py":"jiù","e1":"救的救","e2":""},{"w":"命","py":"mìng","e1":"命的命","e2":""},{"w":"尾","py":"wěi","e1":"尾的尾","e2":""},{"w":"齿","py":"chǐ","e1":"齿的齿","e2":""},{"w":"胃","py":"wèi","e1":"胃的胃","e2":""},{"w":"管","py":"guǎn","e1":"管的管","e2":""},{"w":"刚","py":"gāng","e1":"刚的刚","e2":""},{"w":"咬","py":"yǎo","e1":"咬的咬","e2":""}],"words":[{"w":"旅行","py":"lǚxíng"},{"w":"要好","py":"yàohǎo"},{"w":"答应","py":"dāyìng"},{"w":"做梦","py":"zuòmèng"},{"w":"来得及","py":"láidejí"},{"w":"救命","py":"jiùmìng"}]},{"name":"13* 一块奶酪","hanzi":[],"words":[]},{"name":"语文园地四","hanzi":[{"w":"申","py":"shēn","e1":"申的申","e2":""},{"w":"介","py":"jiè","e1":"介的介","e2":""},{"w":"绍","py":"shào","e1":"绍的绍","e2":""},{"w":"宗","py":"zōng","e1":"宗的宗","e2":""},{"w":"旨","py":"zhǐ","e1":"旨的旨","e2":""},{"w":"占","py":"zhàn","e1":"占的占","e2":""},{"w":"乏","py":"fá","e1":"乏的乏","e2":""}],"words":[{"w":"大吃一惊","py":"dàchīyījīng"},{"w":"尾巴","py":"wěiba"},{"w":"牙齿","py":"yáchǐ"},{"w":"肚皮","py":"dùpí"},{"w":"食物","py":"shíwù"},{"w":"消化","py":"xiāohuà"},{"w":"当然","py":"dāngrán"},{"w":"刚才","py":"gāngcái"},{"w":"知觉","py":"zhījué"},{"w":"光亮","py":"guāngliàng"}]}],"poems":[]},{"name":"第五单元","lessons":[{"name":"14 搭船的鸟","hanzi":[{"w":"搭","py":"dā","e1":"搭的搭","e2":""},{"w":"亲","py":"qīn","e1":"亲的亲","e2":""},{"w":"祖","py":"zǔ","e1":"祖的祖","e2":""},{"w":"披","py":"pī","e1":"披的披","e2":""},{"w":"摇","py":"yáo","e1":"摇的摇","e2":""},{"w":"停","py":"tíng","e1":"停的停","e2":""},{"w":"羽","py":"yǔ","e1":"羽的羽","e2":""},{"w":"翠","py":"cuì","e1":"翠的翠","e2":""},{"w":"蓝","py":"lán","e1":"蓝的蓝","e2":""},{"w":"静","py":"jìng","e1":"静的静","e2":""},{"w":"悄","py":"qiāo","e1":"悄的悄","e2":""},{"w":"吞","py":"tūn","e1":"吞的吞","e2":""},{"w":"捕","py":"bǔ","e1":"捕的捕","e2":""}],"words":[{"w":"母亲","py":"mǔqīn"},{"w":"外祖父","py":"wàizǔfù"},{"w":"船夫","py":"chuánfū"},{"w":"羽毛","py":"yǔmáo"},{"w":"翠绿","py":"cuìlǜ"},{"w":"静悄悄","py":"jìngqiāoqiāo"},{"w":"翠鸟","py":"cuìniǎo"},{"w":"捕鱼","py":"bǔyú"}]},{"name":"15 金色的草地","hanzi":[{"w":"蒲","py":"pú","e1":"蒲的蒲","e2":""},{"w":"英","py":"yīng","e1":"英的英","e2":""},{"w":"盛","py":"shèng","e1":"盛的盛","e2":""},{"w":"耍","py":"shuǎ","e1":"耍的耍","e2":""},{"w":"使","py":"shǐ","e1":"使的使","e2":""},{"w":"劲","py":"jìn","e1":"劲的劲","e2":""},{"w":"脸","py":"liǎn","e1":"脸的脸","e2":""},{"w":"欠","py":"qiàn","e1":"欠的欠","e2":""},{"w":"朝","py":"cháo","e1":"朝的朝","e2":""},{"w":"钓","py":"diào","e1":"钓的钓","e2":""},{"w":"察","py":"chá","e1":"察的察","e2":""},{"w":"拢","py":"lǒng","e1":"拢的拢","e2":""},{"w":"喜","py":"xǐ","e1":"喜的喜","e2":""}],"words":[{"w":"草地","py":"cǎodì"},{"w":"蒲公英","py":"púgōngyīng"},{"w":"盛开","py":"shèngkāi"},{"w":"玩耍","py":"wánshuǎ"},{"w":"一本正经","py":"yīběnzhèngjīng"},{"w":"使劲","py":"shǐjìn"},{"w":"钓鱼","py":"diàoyú"},{"w":"观察","py":"guānchá"},{"w":"合拢","py":"hélǒng"},{"w":"张开","py":"zhāngkāi"},{"w":"喜爱","py":"xǐài"}]}],"poems":[]},{"name":"第六单元","lessons":[{"name":"16 富饶的西沙群岛","hanzi":[{"w":"景","py":"jǐng","e1":"景的景","e2":""},{"w":"优","py":"yōu","e1":"优的优","e2":""},{"w":"淡","py":"dàn","e1":"淡的淡","e2":""},{"w":"浅","py":"qiǎn","e1":"浅的浅","e2":""},{"w":"底","py":"dǐ","e1":"底的底","e2":""},{"w":"岩","py":"yán","e1":"岩的岩","e2":""},{"w":"鹿","py":"lù","e1":"鹿的鹿","e2":""},{"w":"划","py":"huà","e1":"划的划","e2":""},{"w":"布","py":"bù","e1":"布的布","e2":""},{"w":"茂","py":"mào","e1":"茂的茂","e2":""},{"w":"密","py":"mì","e1":"密的密","e2":""},{"w":"厚","py":"hòu","e1":"厚的厚","e2":""},{"w":"料","py":"liào","e1":"料的料","e2":""}],"words":[{"w":"风景","py":"fēngjǐng"},{"w":"优美","py":"yōuměi"},{"w":"物产","py":"wùchǎn"},{"w":"交错","py":"jiāocuò"},{"w":"岩石","py":"yánshí"},{"w":"鹿角","py":"lùjiǎo"},{"w":"成群结队","py":"chéngqúnjiéduì"},{"w":"布满","py":"bùmǎn"},{"w":"条纹","py":"tiáowén"},{"w":"周身","py":"zhōushēn"},{"w":"皮球","py":"píqiú"},{"w":"茂密","py":"màomì"},{"w":"肥料","py":"féiliào"},{"w":"祖国","py":"zǔguó"},{"w":"事业","py":"shìyè"},{"w":"发展","py":"fāzhǎn"}]},{"name":"17 海滨小城","hanzi":[{"w":"滨","py":"bīn","e1":"滨的滨","e2":""},{"w":"棕","py":"zōng","e1":"棕的棕","e2":""},{"w":"帆","py":"fān","e1":"帆的帆","e2":""},{"w":"灰","py":"huī","e1":"灰的灰","e2":""},{"w":"跟","py":"gēn","e1":"跟的跟","e2":""},{"w":"渔","py":"yú","e1":"渔的渔","e2":""},{"w":"壳","py":"ké","e1":"壳的壳","e2":""},{"w":"院","py":"yuàn","e1":"院的院","e2":""},{"w":"亚","py":"yà","e1":"亚的亚","e2":""},{"w":"透","py":"tòu","e1":"透的透","e2":""},{"w":"除","py":"chú","e1":"除的除","e2":""},{"w":"踩","py":"cǎi","e1":"踩的踩","e2":""}],"words":[{"w":"海滨","py":"hǎibīn"},{"w":"街道","py":"jiēdào"},{"w":"交界","py":"jiāojiè"},{"w":"水平线","py":"shuǐpíngxiàn"},{"w":"机帆船","py":"jīfānchuán"},{"w":"来来往往","py":"láiláiwǎngwǎng"},{"w":"朝阳","py":"zhāoyáng"},{"w":"渔民","py":"yúmín"},{"w":"贝壳","py":"bèiké"},{"w":"汽笛","py":"qìdí"},{"w":"出海","py":"chūhǎi"},{"w":"银光闪闪","py":"yínguāngshǎnshǎn"},{"w":"庭院","py":"tíngyuàn"},{"w":"亚热带","py":"yàrèdài"},{"w":"散发","py":"sànfà"},{"w":"打扫","py":"dǎsǎo"},{"w":"干净","py":"gānjìng"}]},{"name":"18 美丽的小兴安岭","hanzi":[{"w":"抽","py":"chōu","e1":"抽的抽","e2":""},{"w":"封","py":"fēng","e1":"封的封","e2":""},{"w":"严","py":"yán","e1":"严的严","e2":""},{"w":"挡","py":"dǎng","e1":"挡的挡","e2":""},{"w":"坛","py":"tán","e1":"坛的坛","e2":""},{"w":"显","py":"xiǎn","e1":"显的显","e2":""},{"w":"苍","py":"cāng","e1":"苍的苍","e2":""},{"w":"药","py":"yào","e1":"药的药","e2":""},{"w":"材","py":"cái","e1":"材的材","e2":""},{"w":"软","py":"ruǎn","e1":"软的软","e2":""},{"w":"刮","py":"guā","e1":"刮的刮","e2":""},{"w":"捉","py":"zhuō","e1":"捉的捉","e2":""}],"words":[{"w":"东北","py":"dōngběi"},{"w":"密密层层","py":"mìmìcéngcéng"},{"w":"严严实实","py":"yányánshíshí"},{"w":"视线","py":"shìxiàn"},{"w":"山谷","py":"shāngǔ"},{"w":"起来","py":"qǐlái"},{"w":"照射","py":"zhàoshè"},{"w":"各种各样","py":"gèzhǒnggèyàng"},{"w":"花坛","py":"huātán"},{"w":"显得","py":"xiǎnde"},{"w":"苍翠","py":"cāngcuì"},{"w":"药材","py":"yàocái"},{"w":"捕捉","py":"bǔzhuō"},{"w":"野兔","py":"yětù"},{"w":"景色","py":"jǐngsè"},{"w":"宝库","py":"bǎokù"}]},{"name":"19* 香港，璀璨的明珠","hanzi":[],"words":[]},{"name":"语文园地六","hanzi":[],"words":[]}],"poems":[]},{"name":"第七单元","lessons":[{"name":"20 古诗三首","hanzi":[{"w":"返","py":"fǎn","e1":"返的返","e2":""},{"w":"望","py":"wàng","e1":"望的望","e2":""},{"w":"断","py":"duàn","e1":"断的断","e2":""},{"w":"楚","py":"chǔ","e1":"楚的楚","e2":""},{"w":"至","py":"zhì","e1":"至的至","e2":""},{"w":"岸","py":"àn","e1":"岸的岸","e2":""},{"w":"孤","py":"gū","e1":"孤的孤","e2":""},{"w":"饮","py":"yǐn","e1":"饮的饮","e2":""},{"w":"亦","py":"yì","e1":"亦的亦","e2":""},{"w":"欲","py":"yù","e1":"欲的欲","e2":""},{"w":"抹","py":"mǒ","e1":"抹的抹","e2":""},{"w":"宜","py":"yí","e1":"宜的宜","e2":""}],"words":[]},{"name":"21 大自然的声音","hanzi":[{"w":"妙","py":"miào","e1":"妙的妙","e2":""},{"w":"奏","py":"zòu","e1":"奏的奏","e2":""},{"w":"琴","py":"qín","e1":"琴的琴","e2":""},{"w":"柔","py":"róu","e1":"柔的柔","e2":""},{"w":"感","py":"gǎn","e1":"感的感","e2":""},{"w":"充","py":"chōng","e1":"充的充","e2":""},{"w":"威","py":"wēi","e1":"威的威","e2":""},{"w":"器","py":"qì","e1":"器的器","e2":""},{"w":"汇","py":"huì","e1":"汇的汇","e2":""},{"w":"鸣","py":"míng","e1":"鸣的鸣","e2":""},{"w":"塘","py":"táng","e1":"塘的塘","e2":""}],"words":[{"w":"大自然","py":"dàzìrán"},{"w":"美妙","py":"měimiào"},{"w":"音乐家","py":"yīnyuèjiā"},{"w":"手风琴","py":"shǒufēngqín"},{"w":"歌手","py":"gēshǒu"},{"w":"感受","py":"gǎnshòu"},{"w":"温柔","py":"wēnróu"},{"w":"合奏","py":"hézòu"},{"w":"充满","py":"chōngmǎn"},{"w":"威力","py":"wēilì"},{"w":"乐器","py":"yuèqì"},{"w":"屋顶","py":"wūdǐng"},{"w":"河流","py":"héliú"},{"w":"轻快","py":"qīngkuài"},{"w":"合唱","py":"héchàng"},{"w":"水塘","py":"shuǐtáng"}]},{"name":"22 读不完的大书","hanzi":[{"w":"虾","py":"xiā","e1":"虾的虾","e2":""},{"w":"昆","py":"kūn","e1":"昆的昆","e2":""},{"w":"仅","py":"jǐn","e1":"仅的仅","e2":""},{"w":"序","py":"xù","e1":"序的序","e2":""},{"w":"荣","py":"róng","e1":"荣的荣","e2":""},{"w":"枯","py":"kū","e1":"枯的枯","e2":""},{"w":"姿","py":"zī","e1":"姿的姿","e2":""},{"w":"态","py":"tài","e1":"态的态","e2":""},{"w":"刺","py":"cì","e1":"刺的刺","e2":""},{"w":"梨","py":"lí","e1":"梨的梨","e2":""},{"w":"部","py":"bù","e1":"部的部","e2":""},{"w":"奥","py":"ào","e1":"奥的奥","e2":""},{"w":"秘","py":"mì","e1":"秘的秘","e2":""}],"words":[{"w":"昆虫","py":"kūnchóng"},{"w":"万物","py":"wànwù"},{"w":"沉思","py":"chénsī"},{"w":"搬家","py":"bānjiā"},{"w":"井然有序","py":"jǐngrányǒuxù"},{"w":"精神","py":"jīngshén"},{"w":"植物","py":"zhíwù"},{"w":"千姿百态","py":"qiānzībǎitài"},{"w":"鲜美","py":"xiānměi"},{"w":"池塘","py":"chítáng"},{"w":"秋高气爽","py":"qiūgāoqìshuǎng"},{"w":"倒映","py":"dàoyìng"},{"w":"游玩","py":"yóuwán"},{"w":"画册","py":"huàcè"},{"w":"无穷","py":"wúqióng"},{"w":"奥秘","py":"àomì"},{"w":"无尽","py":"wújìn"}]},{"name":"语文园地七","hanzi":[{"w":"螺","py":"luó","e1":"螺的螺","e2":""},{"w":"螃","py":"páng","e1":"螃的螃","e2":""},{"w":"蟹","py":"xiè","e1":"蟹的蟹","e2":""},{"w":"鲤","py":"lǐ","e1":"鲤的鲤","e2":""},{"w":"鲫","py":"jì","e1":"鲫的鲫","e2":""},{"w":"鲨","py":"shā","e1":"鲨的鲨","e2":""}],"words":[{"w":"田螺","py":"tiánluó"},{"w":"螃蟹","py":"pángxiè"},{"w":"鲤鱼","py":"lǐyú"},{"w":"鲫鱼","py":"jìyú"},{"w":"鲨鱼","py":"shāyú"}]}],"poems":[{"name":"鹿柴","author":"王维","full":"空山不见人，但闻人语响。返景入深林，复照青苔上。","hanzi":[],"words":[]},{"name":"望天门山","author":"李白","full":"天门中断楚江开，碧水东流至此回。两岸青山相对出，孤帆一片日边来。","hanzi":[],"words":[]},{"name":"饮湖上初晴后雨","author":"苏轼","full":"水光潋滟晴方好，山色空蒙雨亦奇。欲把西湖比西子，淡妆浓抹总相宜。","hanzi":[],"words":[]}]},{"name":"第八单元","lessons":[{"name":"23 司马光","hanzi":[{"w":"司","py":"sī","e1":"司的司","e2":""},{"w":"登","py":"dēng","e1":"登的登","e2":""},{"w":"跌","py":"diē","e1":"跌的跌","e2":""},{"w":"皆","py":"jiē","e1":"皆的皆","e2":""},{"w":"弃","py":"qì","e1":"弃的弃","e2":""},{"w":"持","py":"chí","e1":"持的持","e2":""},{"w":"击","py":"jī","e1":"击的击","e2":""}],"words":[]},{"name":"24 一定要争气","hanzi":[{"w":"念","py":"niàn","e1":"念的念","e2":""},{"w":"差","py":"chà","e1":"差的差","e2":""},{"w":"考","py":"kǎo","e1":"考的考","e2":""},{"w":"试","py":"shì","e1":"试的试","e2":""},{"w":"均","py":"jūn","e1":"均的均","e2":""},{"w":"退","py":"tuì","e1":"退的退","e2":""},{"w":"努","py":"nǔ","e1":"努的努","e2":""},{"w":"单","py":"dān","e1":"单的单","e2":""},{"w":"留","py":"liú","e1":"留的留","e2":""},{"w":"度","py":"dù","e1":"度的度","e2":""},{"w":"奋","py":"fèn","e1":"奋的奋","e2":""}],"words":[{"w":"生物","py":"shēngwù"},{"w":"从事","py":"cóngshì"},{"w":"成就","py":"chéngjiù"},{"w":"学期","py":"xuéqī"},{"w":"考试","py":"kǎoshì"},{"w":"再三","py":"zàisān"},{"w":"同意","py":"tóngyì"},{"w":"难得","py":"nándé"},{"w":"值班","py":"zhíbān"},{"w":"努力","py":"nǔlì"},{"w":"留学","py":"liúxué"},{"w":"国家","py":"guójiā"},{"w":"落后","py":"luòhòu"},{"w":"地位","py":"dìwèi"},{"w":"环节","py":"huánjié"},{"w":"难度","py":"nándù"},{"w":"刻苦","py":"kèkǔ"},{"w":"兴奋","py":"xīngfèn"}]},{"name":"25 手术台就是阵地","hanzi":[{"w":"棒","py":"bàng","e1":"棒的棒","e2":""},{"w":"伤","py":"shāng","e1":"伤的伤","e2":""},{"w":"陆","py":"lù","e1":"陆的陆","e2":""},{"w":"血","py":"xuè","e1":"血的血","e2":""},{"w":"取","py":"qǔ","e1":"取的取","e2":""},{"w":"盘","py":"pán","e1":"盘的盘","e2":""},{"w":"匆","py":"cōng","e1":"匆的匆","e2":""},{"w":"医","py":"yī","e1":"医的医","e2":""},{"w":"迅","py":"xùn","e1":"迅的迅","e2":""},{"w":"速","py":"sù","e1":"速的速","e2":""},{"w":"夺","py":"duó","e1":"夺的夺","e2":""},{"w":"秒","py":"miǎo","e1":"秒的秒","e2":""}],"words":[{"w":"手术台","py":"shǒushùtái"},{"w":"阵地","py":"zhèndì"},{"w":"战斗","py":"zhàndòu"},{"w":"打响","py":"dǎxiǎng"},{"w":"消灭","py":"xiāomiè"},{"w":"伤员","py":"shāngyuán"},{"w":"陆续","py":"lùxù"},{"w":"血丝","py":"xuèsī"},{"w":"匆匆","py":"cōngcōng"},{"w":"医生","py":"yīshēng"},{"w":"转告","py":"zhuǎngào"},{"w":"赶忙","py":"gǎnmáng"},{"w":"迅速","py":"xùnsù"},{"w":"争分夺秒","py":"zhēngfēnduómiǎo"},{"w":"连续","py":"liánxù"}]},{"name":"26* 一个粗瓷大碗","hanzi":[],"words":[]},{"name":"语文园地八","hanzi":[{"w":"睁","py":"zhēng","e1":"睁的睁","e2":""},{"w":"眨","py":"zhǎ","e1":"眨的眨","e2":""},{"w":"瞪","py":"dèng","e1":"瞪的瞪","e2":""},{"w":"瞅","py":"chǒu","e1":"瞅的瞅","e2":""},{"w":"怒","py":"nù","e1":"怒的怒","e2":""},{"w":"眶","py":"kuàng","e1":"眶的眶","e2":""},{"w":"呆","py":"dāi","e1":"呆的呆","e2":""},{"w":"睹","py":"dǔ","e1":"睹的睹","e2":""}],"words":[{"w":"怒目圆睁","py":"nùmùyuánzhēng"},{"w":"眨眼","py":"zhǎyǎn"},{"w":"眼眶","py":"yǎnkuàng"},{"w":"目瞪口呆","py":"mùdèngkǒudāi"},{"w":"耳闻目睹","py":"ěrwénmùdǔ"}]}],"poems":[]}]}};
 const GRADE_OPTIONS = [["1-1", "一年级上册"], ["1-2", "一年级下册"], ["2-1", "二年级上册"], ["2-2", "二年级下册"], ["3-1", "三年级上册"], ["3-2", "三年级下册"], ["4-1", "四年级上册"], ["4-2", "四年级下册"], ["5-1", "五年级上册"], ["5-2", "五年级下册"], ["6-1", "六年级上册"], ["6-2", "六年级下册"]];
@@ -396,6 +432,10 @@ let dictationSelections = { units:[], lessons:[], poems:[], hanzi:[], words:[], 
 let dictationExpanded = [];
 let wrongSelections = new Set();
 let dictationTypes = { hanzi:true, words:true, poem:false };
+let wrongTab = 'chinese';
+let printSelections = { units:[], lessons:[], poems:[], hanzi:[], words:[], poemFull:[] };
+let printExpanded = [];
+let printTypes = { hanzi:true, words:true, poem:false };
 let dictationQueue = [];
 let dictationIndex = 0;
 let dictationAuto = false;
@@ -420,8 +460,8 @@ function switchPage(name){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.getElementById('page-'+name).classList.add('active');
   document.querySelectorAll('.bottom-nav .nav-item').forEach(n=>n.classList.remove('active'));
-  // 高亮对应的底部导航项：dictation/dictation-select 也属于语文
-  const navName = (name==='dictation' || name==='dictation-select') ? 'chinese' : name;
+  // 高亮对应的底部导航项：dictation/dictation-select/print-select 也属于语文
+  const navName = (name==='dictation' || name==='dictation-select' || name==='print-select') ? 'chinese' : name;
   document.querySelector(`.bottom-nav .nav-item[data-page="${navName}"]`)?.classList.add('active');
   if(name==='wrong') renderWrong();
   if(name==='checkin') renderCheckin();
@@ -994,29 +1034,220 @@ function setOption(id, v, el){
 
 // ============ 去打印 ============
 function openPrint(customItems){
-  let hanzi, words, poems, title;
   if(customItems && customItems.length){
-    title = '错题本字词表';
-    hanzi = customItems.filter(x=>x.type==='hanzi');
-    words = customItems.filter(x=>x.type==='word');
-    poems = customItems.filter(x=>x.type==='poem');
-  } else {
-    dictationSelections = { units:[], lessons:[], poems:[], hanzi:[], words:[], poemFull:[] };
-    CHINESE[currentGrade].units.forEach((unit, ui)=> dictationSelections.units.push(ui) );
-    dictationTypes = { hanzi:true, words:true, poem:true };
-    buildDictationQueue();
-    title = `${getGradeName(currentGrade)} 字词表`;
-    hanzi = dictationQueue.filter(x=>x.type==='hanzi');
-    words = dictationQueue.filter(x=>x.type==='word');
-    poems = dictationQueue.filter(x=>x.type==='poem');
+    renderPrintSheet(customItems, '错题本字词表');
+    switchPage('print');
+    return;
   }
+  // 打开打印选择界面
+  printSelections = { units:[], lessons:[], poems:[], hanzi:[], words:[], poemFull:[] };
+  printExpanded = [];
+  printTypes = { hanzi:true, words:true, poem:false };
+  switchPage('print-select');
+  renderPrintTree();
+  updatePrintCount();
+}
+function renderPrintSheet(items, title){
+  const hanzi = items.filter(x=>x.type==='hanzi');
+  const words = items.filter(x=>x.type==='word');
+  const poems = items.filter(x=>x.type==='poem');
   document.getElementById('printSheet').innerHTML = `
-    <div class="print-title">${title}</div>
-    <div class="print-section"><h4>生字（${hanzi.length}个）</h4><div class="print-grid">${hanzi.map(h=>`<div class="print-cell"><span class="pinyin">${toneMark(h.py)}</span>${h.w}</div>`).join('')}</div></div>
-    <div class="print-section"><h4>词语（${words.length}个）</h4><div class="print-grid">${words.map(w=>`<div class="print-cell"><span class="pinyin">${toneMark(w.py)}</span>${w.w}</div>`).join('')}</div></div>
+    <div class="print-title">${title || getGradeName(currentGrade)+' 字词表'}</div>
+    ${hanzi.length?`<div class="print-section"><h4>生字（${hanzi.length}个）</h4><div class="print-grid">${hanzi.map(h=>`<div class="tianzi-cell"><div class="tz-pinyin">${toneMark(h.py)||''}</div><div class="tz-grid"></div></div>`).join('')}</div></div>`:''}
+    ${words.length?`<div class="print-section"><h4>词语（${words.length}个）</h4><div class="print-grid">${words.map(w=>`<div class="tianzi-cell word"><div class="tz-pinyin">${toneMark(w.py)||''}</div><div class="tz-grid"></div></div>`).join('')}</div></div>`:''}
     ${poems.length?`<div class="print-section"><h4>古诗（${poems.length}首）</h4>${poems.map(p=>`<p style="margin:8px 0;font-size:15px;"><b>${p.w}</b>（${p.author||'未知'}）<br>${p.full}</p>`).join('')}</div>`:''}
   `;
+}
+function startPrint(){
+  const items = buildPrintQueue();
+  if(items.length===0){ alert('请先选择打印内容'); return; }
+  renderPrintSheet(items);
   switchPage('print');
+}
+function buildPrintQueue(){
+  const data = CHINESE[currentGrade];
+  const queue = [];
+  data.units.forEach((unit, ui)=>{
+    const unitSelected = printSelections.units.includes(ui);
+    unit.lessons.forEach((lesson, li)=>{
+      const lkey = `${ui}-${li}`;
+      const lessonSelected = unitSelected || printSelections.lessons.includes(lkey);
+      if(lessonSelected || printSelections.hanzi.some(k=>k.startsWith(lkey+'-')) || printSelections.words.some(k=>k.startsWith(lkey+'-')) ){
+        if(printTypes.hanzi && lesson.hanzi){
+          lesson.hanzi.forEach((h, hi)=>{
+            const key = `${lkey}-${hi}`;
+            if(lessonSelected || printSelections.hanzi.includes(key)) queue.push({type:'hanzi', w:h.w, py:h.py, e1:h.e1, e2:h.e2});
+          });
+        }
+        if(printTypes.words && lesson.words){
+          lesson.words.forEach((w, wi)=>{
+            const key = `${lkey}-${wi}`;
+            if(lessonSelected || printSelections.words.includes(key)) queue.push({type:'word', w:w.w, py:w.py});
+          });
+        }
+      }
+    });
+    unit.poems.forEach((poem, pi)=>{
+      const pkey = `${ui}-${pi}`;
+      const poemSelected = unitSelected || printSelections.poems.includes(pkey);
+      if(poemSelected || printSelections.poemFull.includes(pkey)){
+        if(printTypes.poem && poem.full) queue.push({type:'poem', w:poem.name, py:'', full:poem.full, author:poem.author});
+      }
+    });
+  });
+  return queue;
+}
+function renderPrintTree(){
+  const data = CHINESE[currentGrade];
+  const box = document.getElementById('printTree');
+  if(!data || !data.units || !data.units.length){ box.innerHTML='<div class="empty-tip">没有可打印内容</div>'; return; }
+  box.innerHTML = data.units.map((unit, ui)=>{
+    const unitChecked = printSelections.units.includes(ui);
+    const unitOpen = printExpanded.includes('u-'+ui);
+    let html = `<div class="unit-block">
+      <div class="check-row" style="padding-left:14px;background:#fff;border-radius:12px;margin-bottom:6px;">
+        <input type="checkbox" ${unitChecked?'checked':''} onclick="event.stopPropagation();togglePrintUnit(${ui})">
+        <span class="c-name" style="flex:1;cursor:pointer;" onclick="togglePrintUnitExpand(${ui})">${unit.name}</span>
+        <span class="c-meta" style="cursor:pointer;" onclick="togglePrintUnitExpand(${ui})">${unitOpen?'收起 ▲':'展开 ▼'}</span>
+      </div>
+      <div class="unit-body ${unitOpen?'open':''}" id="print-unit-body-${ui}" style="background:transparent;border:none;padding:0 0 0 12px;display:${unitOpen?'block':'none'};">`;
+    unit.lessons.forEach((lesson, li)=>{
+      const key = `${ui}-${li}`;
+      const lessonChecked = printSelections.lessons.includes(key);
+      const isOpen = printExpanded.includes(key);
+      html += `<div class="lesson-row" style="margin-bottom:8px;">
+        <div class="lesson-title" onclick="togglePrintExpand('${key}')">
+          <div style="display:flex;align-items:center;gap:8px;flex:1;">
+            <input type="checkbox" ${lessonChecked?'checked':''} onclick="event.stopPropagation();togglePrintLesson('${key}')">
+            <span class="l-name">课文：${lesson.name}</span>
+          </div>
+          <span style="font-size:12px;color:var(--text-light)">${isOpen?'收起 ▲':'展开 ▼'}</span>
+        </div>
+        <div class="lesson-body ${isOpen?'open':''}" id="print-dict-body-${key}" style="display:${isOpen?'block':'none'};">
+          ${isOpen && printTypes.hanzi && lesson.hanzi.length ? renderPrintItems('生字', lesson.hanzi, 'hanzi', key) : ''}
+          ${isOpen && printTypes.words && lesson.words.length ? renderPrintItems('词语', lesson.words, 'word', key) : ''}
+        </div>
+      </div>`;
+    });
+    unit.poems.forEach((poem, pi)=>{
+      const key = `${ui}-${pi}`;
+      const poemChecked = printSelections.poems.includes(key);
+      const isOpen = printExpanded.includes(key);
+      const fullKey = key;
+      html += `<div class="lesson-row" style="margin-bottom:8px;">
+        <div class="lesson-title" onclick="togglePrintExpand('${key}')">
+          <div style="display:flex;align-items:center;gap:8px;flex:1;">
+            <input type="checkbox" ${poemChecked?'checked':''} onclick="event.stopPropagation();togglePrintPoem('${key}')">
+            <span class="l-name">古诗：${poem.name}</span>
+          </div>
+          <span style="font-size:12px;color:var(--text-light)">${isOpen?'收起 ▲':'展开 ▼'}</span>
+        </div>
+        <div class="lesson-body ${isOpen?'open':''}" id="print-dict-body-${key}" style="display:${isOpen?'block':'none'};">
+          ${isOpen && printTypes.poem && poem.full ? `
+            <div class="section-title">古诗全文</div>
+            <div class="check-row dict-item-row" onclick="togglePrintPoemFull('${fullKey}')">
+              <input type="checkbox" ${printSelections.poemFull.includes(fullKey)?'checked':''} onclick="event.stopPropagation();togglePrintPoemFull('${fullKey}')">
+              <span class="c-name">${poem.name} 全文</span>
+            </div>` : ''}
+        </div>
+      </div>`;
+    });
+    return html + '</div></div>';
+  }).join('');
+  updatePrintCount();
+}
+function renderPrintItems(title, list, field, parentKey){
+  return `
+    <div class="section-title">${title}</div>
+    <div class="word-grid">
+      ${list.map((it, i)=>{
+        const key = `${parentKey}-${i}`;
+        const checked = printSelections[field==='hanzi'?'hanzi':'words'].includes(key);
+        return `<div class="word-tag dict-word ${checked?'reading':''}" onclick="togglePrintWord('${field}','${key}')">
+          <input type="checkbox" ${checked?'checked':''} onclick="event.stopPropagation();togglePrintWord('${field}','${key}')" style="width:16px;height:16px;cursor:pointer;">
+          <div>
+            <div style="font-size:16px;font-weight:800;">${it.w}</div>
+            <div class="py">${toneMark(it.py)}</div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+  `;
+}
+function updatePrintCount(){
+  const total = buildPrintQueue().length;
+  document.getElementById('printCount').textContent = `已选 ${total} 项`;
+}
+function togglePrintType(type){
+  printTypes[type] = !printTypes[type];
+  const idMap = {hanzi:'pchkHanzi', words:'pchkWords', poem:'pchkPoem'};
+  const el = document.getElementById(idMap[type]);
+  if(el) el.classList.toggle('active', printTypes[type]);
+  renderPrintTree();
+}
+function togglePrintUnit(ui){
+  const pos = printSelections.units.indexOf(ui);
+  const unit = CHINESE[currentGrade].units[ui];
+  if(pos>=0){
+    printSelections.units.splice(pos,1);
+    unit.lessons.forEach((_,li)=>{ const k=`${ui}-${li}`; removeIfExists(printSelections.lessons,k); });
+    unit.poems.forEach((_,pi)=>{ const k=`${ui}-${pi}`; removeIfExists(printSelections.poems,k); });
+    removePrintChildrenKeys(ui, 'hanzi'); removePrintChildrenKeys(ui, 'words'); removePrintChildrenKeys(ui, 'poemFull');
+  } else {
+    printSelections.units.push(ui);
+    unit.lessons.forEach((_,li)=>{ const k=`${ui}-${li}`; if(!printSelections.lessons.includes(k)) printSelections.lessons.push(k); });
+    unit.poems.forEach((_,pi)=>{ const k=`${ui}-${pi}`; if(!printSelections.poems.includes(k)) printSelections.poems.push(k); });
+  }
+  renderPrintTree();
+}
+function removePrintChildrenKeys(ui, field){
+  const prefix = `${ui}-`;
+  printSelections[field] = printSelections[field].filter(k=>!k.startsWith(prefix));
+}
+function togglePrintUnitExpand(ui){
+  const key = 'u-'+ui;
+  const i = printExpanded.indexOf(key);
+  if(i>=0) printExpanded.splice(i,1); else printExpanded.push(key);
+  renderPrintTree();
+}
+function togglePrintLesson(key){
+  const pos = printSelections.lessons.indexOf(key);
+  if(pos>=0){
+    printSelections.lessons.splice(pos,1);
+    removePrintChildrenKeysOf(key, 'hanzi'); removePrintChildrenKeysOf(key, 'words');
+  } else {
+    printSelections.lessons.push(key);
+  }
+  renderPrintTree();
+}
+function togglePrintPoem(key){
+  const pos = printSelections.poems.indexOf(key);
+  if(pos>=0){
+    printSelections.poems.splice(pos,1);
+    removePrintChildrenKeysOf(key, 'hanzi'); removePrintChildrenKeysOf(key, 'words'); removeIfExists(printSelections.poemFull, key);
+  } else {
+    printSelections.poems.push(key);
+  }
+  renderPrintTree();
+}
+function removePrintChildrenKeysOf(parentKey, field){
+  printSelections[field] = printSelections[field].filter(k=>!k.startsWith(parentKey+'-'));
+}
+function togglePrintExpand(key){
+  const i = printExpanded.indexOf(key);
+  if(i>=0) printExpanded.splice(i,1); else printExpanded.push(key);
+  renderPrintTree();
+}
+function togglePrintWord(field, key){
+  const arr = printSelections[field==='hanzi'?'hanzi':'words'];
+  const i = arr.indexOf(key);
+  if(i>=0) arr.splice(i,1); else arr.push(key);
+  renderPrintTree();
+}
+function togglePrintPoemFull(key){
+  const i = printSelections.poemFull.indexOf(key);
+  if(i>=0) printSelections.poemFull.splice(i,1); else printSelections.poemFull.push(key);
+  renderPrintTree();
 }
 
 // ============ 口算 ============
@@ -1116,15 +1347,29 @@ function parseOldChineseWrong(w){
 }
 function renderWrong(){
   wrongSelections.clear();
-  const arr=load(LS.wrong,[]);
+  const all=load(LS.wrong,[]);
+  const filters = {
+    chinese: w => isChineseWrong(w),
+    math: w => w.type === 'math',
+    english: w => w.type === 'english'
+  };
+  const arr = all.map((w,i)=>({w,i})).filter(({w})=> (filters[wrongTab]||filters.math)(w));
   document.getElementById('wrongCount').textContent=arr.length;
   const box=document.getElementById('wrongList');
   const actions=document.getElementById('wrongActions');
-  if(arr.length===0){ box.innerHTML=''; document.getElementById('wrongEmpty').style.display='block'; if(actions) actions.style.display='none'; return; }
+  if(arr.length===0){
+    box.innerHTML='';
+    const empty = document.getElementById('wrongEmpty');
+    const tips = {chinese:'还没有语文错题，真棒！', math:'还没有数学错题，真棒！', english:'还没有英语错题，真棒！'};
+    empty.textContent = tips[wrongTab] || tips.math;
+    empty.style.display='block';
+    if(actions) actions.style.display='none';
+    return;
+  }
   document.getElementById('wrongEmpty').style.display='none';
-  const hasChinese = arr.some(w=>isChineseWrong(w));
+  const hasChinese = wrongTab==='chinese' && arr.some(({w})=>isChineseWrong(w));
   if(actions) actions.style.display = hasChinese ? 'flex' : 'none';
-  box.innerHTML=arr.map((w,i)=>{
+  box.innerHTML=arr.map(({w,i})=>{
     const isChinese = isChineseWrong(w);
     return `<div class="list-item" style="align-items:flex-start;">
       <div style="display:flex;align-items:center;gap:8px;flex:1;">
@@ -1137,6 +1382,11 @@ function renderWrong(){
       <button class="del" onclick="delWrong(${i})">删除</button>
     </div>`;
   }).join('');
+}
+function switchWrongTab(tab){
+  wrongTab = tab;
+  document.querySelectorAll('.wrong-tab-chip').forEach(c=>c.classList.toggle('active', c.dataset.wtab===tab));
+  renderWrong();
 }
 function wrongDisplayText(w){
   if(w.type==='math') return `${w.text} = ?`;
@@ -1249,11 +1499,13 @@ function renderCheckin(){
 
 // ============ 初始化 ============
 function init(){
+  updateTopDate();
   initGradeSelect();
   renderChinesePage();
   renderEnglish();
   renderWrong();
   renderCheckin();
+  switchPage('chinese');
 }
 init();
 </script>
