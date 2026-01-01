@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#FF8A3D">
-<!-- build: daydayup-deploy 2026-08-29T19:47:00+08:00 -->
+<!-- build: daydayup-deploy 2026-08-29T21:48:00+08:00 -->
 <title>天天向上 · 小学生学习平台</title>
 <style>
 :root {
@@ -324,7 +324,9 @@ select,input[type=text],input[type=number]{width:100%;padding:12px;border:2px so
   <!-- 错题本 -->
   <div class="page" id="page-wrong">
     <div class="card">
-      <div class="card-title">📕 错题本 <span class="badge" id="wrongCount">0</span></div>
+      <div class="card-title">📕 错题本 <span class="badge" id="wrongCount">0</span>
+        <select id="wrongGradeSelect" class="grade-select" style="flex:none;width:auto;min-width:120px;margin-left:auto;font-size:14px;font-weight:700;" onchange="changeWrongGrade(this.value)"></select>
+      </div>
       <div class="seg" style="margin-bottom:12px;">
         <span class="chip wrong-tab-chip active" data-wtab="chinese" onclick="switchWrongTab('chinese')">语文</span>
         <span class="chip wrong-tab-chip" data-wtab="math" onclick="switchWrongTab('math')">数学</span>
@@ -384,7 +386,9 @@ const LS = {
   chinese: 'ddup_chinese_v1',
   chineseVer: 'ddup_chinese_ver_v1',
   dictationConfig: 'ddup_dictation_cfg_v1',
-  dictationHistory: 'ddup_dictation_history_v1'
+  dictationHistory: 'ddup_dictation_history_v1',
+  chineseGrade: 'ddup_chinese_grade_v1',
+  wrongGrade: 'ddup_wrong_grade_v1'
 };
 function load(k, def){ try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch(e){ return def; } }
 function save(k, v){ localStorage.setItem(k, JSON.stringify(v)); }
@@ -442,7 +446,8 @@ else {
   }
   if(needUpdate){ CHINESE = JSON.parse(JSON.stringify(DEFAULT_CHINESE)); save(LS.chinese, CHINESE); save(LS.chineseVer, DATA_VERSION); }
 }
-let currentGrade = '3-1';
+let currentGrade = load(LS.chineseGrade, '3-1');
+let wrongGrade = load(LS.wrongGrade, '3-1');
 let editMode = false;
 let dictationSelections = { units:[], lessons:[], poems:[], hanzi:[], words:[], poemFull:[] };
 let dictationExpanded = [];
@@ -522,7 +527,13 @@ function initGradeSelect(){
   sel.innerHTML = GRADE_OPTIONS.map(([id,name])=>`<option value="${id}">${name}</option>`).join('');
   sel.value = currentGrade;
 }
-function changeGrade(id){ currentGrade = id; buildHanziPyMap(); renderChinesePage(); }
+function changeGrade(id){ currentGrade = id; save(LS.chineseGrade, id); buildHanziPyMap(); renderChinesePage(); }
+function initWrongGradeSelect(){
+  const sel = document.getElementById('wrongGradeSelect');
+  sel.innerHTML = GRADE_OPTIONS.map(([id,name])=>`<option value="${id}">${name}</option>`).join('');
+  sel.value = wrongGrade;
+}
+function changeWrongGrade(id){ wrongGrade = id; save(LS.wrongGrade, id); renderWrong(); }
 
 function renderChinesePage(){
   initGradeSelect();
@@ -1717,8 +1728,10 @@ function migrateWrongData(){
   if(all.length === 0) return;
   const map = new Map();
   let hasDup = false;
+  let hasNoGrade = false;
   all.forEach(w=>{
     if(!w.count) w.count = 1;
+    if(!w.grade){ w.grade = '3-1'; hasNoGrade = true; }
     const key = wrongKey(w);
     if(map.has(key)){
       hasDup = true;
@@ -1729,7 +1742,7 @@ function migrateWrongData(){
       map.set(key, {...w});
     }
   });
-  if(!hasDup) return;
+  if(!hasDup && !hasNoGrade) return;
   const next = Array.from(map.values()).sort((a,b)=> b.ts - a.ts);
   save(LS.wrong, next);
 }
@@ -1758,6 +1771,7 @@ function addDictationToWrong(){
   if(item.type==='poem') entry = {type:'chinese-poem', w:item.w, full:item.full};
   else if(item.type==='word') entry = {type:'chinese-word', w:item.w, py:item.py};
   else entry = {type:'chinese-hanzi', w:item.w, py:item.py, e1:item.e1, e2:item.e2};
+  entry.grade = currentGrade;
   upsertWrong(entry);
   renderWrong();
   alert('已加入错题本');
@@ -2103,7 +2117,7 @@ function endQuiz(manual){
 }
 document.getElementById('quizAns').addEventListener('keydown',e=>{ if(e.key==='Enter') submitAnswer(); });
 function addWrong(q){
-  upsertWrong({type:'math', text:q.text, ans:q.ans});
+  upsertWrong({type:'math', text:q.text, ans:q.ans, grade: currentGrade});
 }
 function isChineseWrong(w){
   if(w.type && w.type.startsWith('chinese')) return true;
@@ -2133,6 +2147,7 @@ function renderWrong(){
   // 合并同一内容的错题，累计加入次数，保留最新时间
   const keyMap = new Map();
   all.forEach((w,i)=>{
+    if(w.grade && w.grade !== wrongGrade) return; // 按错题本选中的年级过滤
     if(!(filters[wrongTab]||filters.math)(w)) return;
     const key = wrongKey(w);
     if(keyMap.has(key)){
@@ -2333,6 +2348,7 @@ function init(){
   updateTopDate();
   migrateWrongData();
   initGradeSelect();
+  initWrongGradeSelect();
   buildHanziPyMap();
   renderChinesePage();
   renderEnglish();
