@@ -1055,6 +1055,39 @@ function openPrint(customItems){
   renderPrintTree();
   updatePrintCount();
 }
+function splitWordPinyin(py){
+  if(!py) return [];
+  const vowels=new Set(['a','o','e','i','u','ü','v']);
+  const initials=['zh','ch','sh','b','p','m','f','d','t','n','l','g','k','h','j','q','x','r','z','c','s','y','w'];
+  const plain=py.toLowerCase()
+    .replace(/[āáǎà]/g,'a').replace(/[ōóǒò]/g,'o').replace(/[ēéěèê]/g,'e')
+    .replace(/[īíǐì]/g,'i').replace(/[ūúǔù]/g,'u').replace(/[ǖǘǚǜ]/g,'ü');
+  const groups=[];
+  let i=0;
+  while(i<plain.length){
+    while(i<plain.length && !vowels.has(plain[i])) i++;
+    if(i>=plain.length) break;
+    let j=i;
+    while(j<plain.length && vowels.has(plain[j])) j++;
+    groups.push({vStart:i,vEnd:j});
+    i=j;
+  }
+  const res=[];
+  let prevEnd=0;
+  for(let idx=0;idx<groups.length;idx++){
+    const g=groups[idx];
+    const nextVowelStart=idx+1<groups.length?groups[idx+1].vStart:plain.length;
+    const nextSub=plain.slice(nextVowelStart);
+    let nextInitialLen=0;
+    for(const init of initials){
+      if(nextSub.startsWith(init)){ nextInitialLen=init.length; break; }
+    }
+    const sylEnd=nextVowelStart-nextInitialLen;
+    res.push(py.slice(prevEnd,sylEnd));
+    prevEnd=sylEnd;
+  }
+  return res;
+}
 function renderPrintSheet(items, title){
   const hanzi = items.filter(x=>x.type==='hanzi');
   const words = items.filter(x=>x.type==='word');
@@ -1062,7 +1095,7 @@ function renderPrintSheet(items, title){
   document.getElementById('printSheet').innerHTML = `
     <div class="print-title">${title || getGradeName(currentGrade)+' 字词表'}</div>
     ${hanzi.length?`<div class="print-section"><h4>生字（${hanzi.length}个）</h4><div class="print-grid">${hanzi.map(h=>`<div class="tianzi-cell"><div class="tz-pinyin">${toneMark(h.py)||''}</div><div class="tz-grid"></div></div>`).join('')}</div></div>`:''}
-    ${words.length?`<div class="print-section"><h4>词语（${words.length}个）</h4><div class="print-grid">${words.map(w=>{const py=toneMark(w.py)||'';return `<div class="word-group"><div class="word-pinyin">${py}</div><div class="word-grids">${w.w.split('').map(()=>`<div class="tianzi-cell word"><div class="tz-grid"></div></div>`).join('')}</div></div>`;}).join('')}</div></div>`:''}
+    ${words.length?`<div class="print-section"><h4>词语（${words.length}个）</h4><div class="print-grid">${words.map(w=>{const chars=w.w.split('');const pyArr=splitWordPinyin(toneMark(w.py)||'');const useSplit=pyArr.length===chars.length;return `<div class="word-group"><div class="word-grids">${chars.map((ch,ci)=>{const p=useSplit?pyArr[ci]:(ci===0?toneMark(w.py):'');return `<div class="tianzi-cell word"><div class="tz-pinyin">${p}</div><div class="tz-grid"></div></div>`}).join('')}</div></div>`;}).join('')}</div></div>`:''}
     ${poems.length?`<div class="print-section"><h4>古诗（${poems.length}首）</h4>${poems.map(p=>`<p style="margin:8px 0;font-size:15px;"><b>${p.w}</b>（${p.author||'未知'}）<br>${p.full}</p>`).join('')}</div>`:''}
   `;
 }
