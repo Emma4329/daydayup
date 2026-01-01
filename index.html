@@ -1083,12 +1083,12 @@ function setOption(id, v, el){
 // ============ 去打印 ============
 function openPrint(customItems){
   if(customItems && customItems.length){
-    wrongBookReturn = false;
     renderPrintSheet(customItems, '错题本字词表');
     switchPage('print');
     return;
   }
   // 打开打印选择界面
+  wrongBookReturn = false;
   printSelections = { units:[], lessons:[], poems:[], hanzi:[], words:[], poemFull:[] };
   printExpanded = [];
   printTypes = { hanzi:true, words:true, poem:false };
