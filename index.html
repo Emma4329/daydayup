@@ -451,8 +451,10 @@ let dictationIndex = 0;
 let dictationPaused = false;
 let dictationTimer = null;
 let dictationPlaying = false;
+let dictationAbort = false; // 点击暂停时中止当前 speakQueue 递归
 let dictationConfig = load(LS.dictationConfig, { repeat: 2, interval: 5000, rate: 0.75 });
 let lastChineseSubPage = 'chinese'; // 'chinese' | 'dictation-select' | 'dictation'
+let HANZI_PY_MAP = {}; // 生字→拼音映射,用于组词显示拼音
 
 // ============ 通用弹窗 ============
 let modalCallback = null;
@@ -511,7 +513,7 @@ function initGradeSelect(){
   sel.innerHTML = GRADE_OPTIONS.map(([id,name])=>`<option value="${id}">${name}</option>`).join('');
   sel.value = currentGrade;
 }
-function changeGrade(id){ currentGrade = id; renderChinesePage(); }
+function changeGrade(id){ currentGrade = id; buildHanziPyMap(); renderChinesePage(); }
 
 function renderChinesePage(){
   initGradeSelect();
@@ -981,10 +983,10 @@ function renderDictationItem(){
   if(!item){ document.getElementById('dictationPy').textContent = '完成'; exBox.innerHTML=''; lastChineseSubPage='chinese'; return; }
   document.getElementById('dictationPy').textContent = toneMark(item.py) || item.w;
   document.getElementById('dictationSub').textContent = item.type==='poem' ? '古诗全文' : '请根据拼音写出汉字';
-  // 生字显示组词（含兜底词库）
+  // 生字显示组词拼音（不含汉字，避免直接给出答案）
   if(item.type==='hanzi'){
     const words = getHanziExamples(item);
-    exBox.innerHTML = words.length ? `<span class="ex-label">组词：</span>${words.map(w=>`<span class="ex-word">${w}</span>`).join('')}` : '';
+    exBox.innerHTML = words.length ? `<span class="ex-label">组词：</span>${words.map(w=>`<span class="ex-word">${wordPinyin(w)}</span>`).join('')}` : '';
   } else {
     exBox.innerHTML = '';
   }
@@ -995,6 +997,7 @@ function dictationPlayPause(){
 }
 function dictationStop(){
   dictationPlaying = false;
+  dictationAbort = true;
   speechSynthesis.cancel();
   clearTimeout(dictationTimer);
   document.getElementById('playIcon').textContent = '▶';
@@ -1003,6 +1006,481 @@ function dictationStop(){
 const FALLBACK_WORDS = {
 "坡":["山坡","上坡"],"球":["足球","皮球"],"招":["招手","招呼"],"呼":["呼吸","欢呼"],"飘":["飘扬","飘动"],"扬":["表扬","飞扬"],"读":["读书","朗读"],"热":["热闹","热情"],"闹":["热闹","吵闹"],"粗":["粗心","粗壮"],"壮":["壮观","强壮"],"洁":["洁白","整洁"],"轰":["轰动","轰鸣"],"湿":["潮湿","湿润"],"润":["滋润","湿润"],"笛":["笛子","长笛"],"狂":["疯狂","狂欢"],"功":["成功","功劳"],"罚":["惩罚","罚款"],"互":["互相","互助"],"碰":["碰到","碰撞"],"黄":["黄色","黄瓜"],"急":["着急","急忙"],"庭":["家庭","庭院"],"相":["相信","互相"],"未":["未来","未必"],"寒":["寒冷","寒风"],"径":["小径","路径"],"斜":["歪斜","斜坡"],"枫":["枫叶","枫树"],"霜":["冰霜","霜冻"],"挑":["挑战","挑选"],"深":["深处","深秋"],"落":["落叶","落下"],"朗":["朗读","晴朗"],"晶":["水晶","晶莹"],"珠":["珍珠","水珠"],"粘":["粘贴","粘住"],"印":["脚印","印象"],"案":["方案","教案"],"展":["展示","发展"],"列":["排列","列车"],"规":["规则","规定"],"则":["规则","原则"],"凌":["凌晨","凌乱"],"乱":["凌乱","混乱"],"凉":["凉快","凉爽"],"杏":["杏树","杏子"],"枚":["一枚","枚举"],"邮":["邮票","邮局"],"票":["邮票","车票"],"爽":["爽快","清爽"],"挤":["拥挤","挤满"],"争":["争吵","争取"],"菊":["菊花","秋菊"],"频":["频繁","频道"],"勾":["勾画","勾结"],"挖":["挖土","挖掘"],"油":["油画","加油"],"屋":["房屋","屋顶"],"板":["黑板","木板"],"准":["准备","准确"],"备":["准备","备用"],"等":["等待","等号"],"暴":["暴雨","暴力"],"哦":["吟哦","哦呀"],"钻":["钻研","钻孔"],"爬":["爬山","爬行"],"漂":["漂亮","漂浮"],"晒":["晾晒","晒干"],"恒":["永恒","恒心"],"圣":["神圣","圣洁"],"萌":["萌芽","萌发"],"妥":["妥当","妥善"],"轴":["轴心","轴线"],"阁":["阁楼","楼阁"],"培":["培养","培训"],"厘":["厘米","毫厘"],"葫":["葫芦"],"芦":["芦苇","芦荟"],"错":["错误","错过"],"普":["普通","普及"],"宫":["宫殿","故宫"],"肯":["肯定","不肯"],"冒":["冒险","冒号"],"式":["方式","公式"],"怜":["可怜","怜惜"],"旅":["旅行","旅游"],"另":["另外","另行"],"晴":["晴天","晴朗"],"及":["及时","及格"],"卷":["试卷","卷子"],"救":["救命","抢救"],"命":["生命","命运"],"尾":["尾巴","结尾"],"齿":["牙齿","齿轮"],"胃":["胃口","胃病"],"管":["管理","水管"],"刚":["刚才","刚刚"],"咬":["咬牙","咬住"],"申":["申请","申诉"],"介":["介绍","介意"],"绍":["介绍","绍兴"],"宗":["宗教","宗旨"],"旨":["宗旨","旨意"],"占":["占领","占据"],"乏":["乏味","缺乏"],"搭":["搭档","搭建"],"亲":["亲自","母亲"],"祖":["祖国","祖父"],"披":["披风","披肩"],"摇":["摇晃","摇头"],"停":["停止","停车"],"羽":["羽毛","羽翼"],"翠":["翠绿","翠鸟"],"蓝":["蓝色","蓝天"],"静":["安静","静止"],"悄":["悄悄","悄然"],"吞":["吞下","吞吐"],"捕":["捕捉","捕猎"],"蒲":["蒲公英","蒲扇"],"英":["英雄","英语"],"盛":["盛开","盛大"],"耍":["玩耍","耍赖"],"使":["使用","使者"],"劲":["使劲","劲头"],"脸":["脸蛋","洗脸"],"欠":["欠款","哈欠"],"朝":["朝阳","朝代"],"钓":["钓鱼","钓竿"],"察":["观察","察觉"],"拢":["合拢","收拢"],"喜":["喜欢","喜爱"],"景":["风景","景色"],"优":["优美","优秀"],"淡":["清淡","淡水"],"浅":["浅水","深浅"],"底":["海底","到底"],"岩":["岩石","岩洞"],"鹿":["小鹿","鹿角"],"划":["划船","计划"],"布":["布置","公布"],"茂":["茂密","茂盛"],"密":["秘密","紧密"],"厚":["深厚","厚道"],"料":["材料","木料"],"滨":["海滨","湖滨"],"棕":["棕色","棕榈"],"帆":["帆船","风帆"],"灰":["灰色","灰尘"],"跟":["跟随","脚跟"],"渔":["渔民","渔夫"],"壳":["贝壳","外壳"],"院":["院子","医院"],"亚":["亚军","亚洲"],"透":["透明","透彻"],"除":["除法","消除"],"踩":["踩踏","踩住"],"抽":["抽水","抽空"],"封":["封闭","信封"],"严":["严格","严肃"],"挡":["阻挡","挡住"],"坛":["花坛","天坛"],"显":["明显","显示"],"苍":["苍茫","苍白"],"药":["药材","药品"],"材":["材料","木材"],"软":["柔软","软弱"],"刮":["刮风","刮刀"],"捉":["捉住","捕捉"],"返":["返回","返程"],"望":["希望","盼望"],"断":["断开","中断"],"楚":["清楚","楚国"],"至":["至今","至于"],"岸":["岸边","海岸"],"孤":["孤独","孤单"],"饮":["饮料","饮水"],"亦":["亦然","亦步亦趋"],"欲":["欲望","食欲"],"抹":["涂抹","抹布"],"宜":["便宜","适宜"],"妙":["奇妙","美妙"],"奏":["演奏","伴奏"],"琴":["钢琴","琴声"],"柔":["温柔","柔软"],"感":["感情","感动"],"充":["充分","充实"],"威":["威风","威力"],"器":["机器","乐器"],"汇":["汇集","汇报"],"鸣":["鸣叫","鸟鸣"],"塘":["池塘","鱼塘"],"虾":["鱼虾","龙虾"],"昆":["昆虫","昆仑"],"仅":["不仅","仅仅"],"序":["顺序","秩序"],"荣":["光荣","荣誉"],"枯":["枯萎","枯燥"],"姿":["姿势","姿态"],"态":["态度","姿态"],"刺":["刺猬","讽刺"],"梨":["梨子","梨树"],"部":["部分","部位"],"奥":["奥秘","深奥"],"秘":["秘密","奥秘"],"螺":["螺丝","螺蛳"],"螃":["螃蟹"],"蟹":["螃蟹"],"鲤":["鲤鱼"],"鲫":["鲫鱼"],"鲨":["鲨鱼"],"司":["公司","司机"],"登":["登山","登记"],"跌":["跌倒","跌跤"],"皆":["皆是","尽皆"],"弃":["放弃","抛弃"],"持":["坚持","保持"],"击":["打击","攻击"],"念":["想念","念头"],"差":["差别","差距"],"考":["考试","考虑"],"试":["考试","尝试"],"均":["平均","均匀"],"退":["退休","后退"],"努":["努力","努嘴"],"单":["简单","单位"],"留":["留下","保留"],"度":["温度","度过"],"奋":["奋斗","兴奋"],"棒":["木棒","棒球"],"伤":["伤心","伤害"],"陆":["陆地","陆军"],"血":["血液","血型"],"取":["取得","争取"],"盘":["盘子","光盘"],"匆":["匆忙","匆匆"],"医":["医生","医院"],"迅":["迅速","迅疾"],"速":["速度","快速"],"夺":["争夺","夺取"],"秒":["秒针","分秒"],"睁":["睁开","睁眼"],"眨":["眨眼","眨巴"],"瞪":["瞪眼","瞪视"],"瞅":["瞅见","瞅"],"怒":["愤怒","怒火"],"眶":["眼眶"],"呆":["发呆","呆板"],"睹":["目睹","有目共睹"]
 };
+const FALLBACK_PY = {
+"山坡":"shānpō",
+"上坡":"shàngpō",
+"足球":"zúqiú",
+"皮球":"píqiú",
+"招手":"zhāoshǒu",
+"招呼":"zhāohū",
+"呼吸":"hūxī",
+"欢呼":"huānhū",
+"飘扬":"piāoyáng",
+"飘动":"piāodòng",
+"表扬":"biǎoyáng",
+"飞扬":"fēiyáng",
+"读书":"dúshū",
+"朗读":"lǎngdú",
+"热闹":"rènào",
+"热情":"rèqíng",
+"吵闹":"chǎonào",
+"粗心":"cūxīn",
+"粗壮":"cūzhuàng",
+"壮观":"zhuàngguān",
+"强壮":"qiángzhuàng",
+"洁白":"jiébái",
+"整洁":"zhěngjié",
+"轰动":"hōngdòng",
+"轰鸣":"hōngmíng",
+"潮湿":"cháoshī",
+"湿润":"shīrùn",
+"滋润":"zīrùn",
+"笛子":"dízǐ",
+"长笛":"chángdí",
+"疯狂":"fēngkuáng",
+"狂欢":"kuánghuān",
+"成功":"chénggōng",
+"功劳":"gōngláo",
+"惩罚":"chéngfá",
+"罚款":"fákuǎn",
+"互相":"hùxiāng",
+"互助":"hùzhù",
+"碰到":"pèngdào",
+"碰撞":"pèngzhuàng",
+"黄色":"huángsè",
+"黄瓜":"huángguā",
+"着急":"zháojí",
+"急忙":"jímáng",
+"家庭":"jiātíng",
+"庭院":"tíngyuàn",
+"相信":"xiāngxìn",
+"未来":"wèilái",
+"未必":"wèibì",
+"寒冷":"hánlěng",
+"寒风":"hánfēng",
+"小径":"xiǎojìng",
+"路径":"lùjìng",
+"歪斜":"wāixié",
+"斜坡":"xiépō",
+"枫叶":"fēngyè",
+"枫树":"fēngshù",
+"冰霜":"bīngshuāng",
+"霜冻":"shuāngdòng",
+"挑战":"tiǎozhàn",
+"挑选":"tiāoxuǎn",
+"深处":"shēnchù",
+"深秋":"shēnqiū",
+"落叶":"luòyè",
+"落下":"luòxià",
+"晴朗":"qínglǎng",
+"水晶":"shuǐjīng",
+"晶莹":"jīngyíng",
+"珍珠":"zhēnzhū",
+"水珠":"shuǐzhū",
+"粘贴":"niántiē",
+"粘住":"niánzhù",
+"脚印":"jiǎoyìn",
+"印象":"yìnxiàng",
+"方案":"fāngàn",
+"教案":"jiàoàn",
+"展示":"zhǎnshì",
+"发展":"fāzhǎn",
+"排列":"páiliè",
+"列车":"lièchē",
+"规则":"guīzé",
+"规定":"guīdìng",
+"原则":"yuánzé",
+"凌晨":"língchén",
+"凌乱":"língluàn",
+"混乱":"hùnluàn",
+"凉快":"liángkuai",
+"凉爽":"liángshuǎng",
+"杏树":"xìngshù",
+"杏子":"xìngzǐ",
+"一枚":"yìméi",
+"枚举":"méijǔ",
+"邮票":"yóupiào",
+"邮局":"yóujú",
+"车票":"chēpiào",
+"爽快":"shuǎngkuài",
+"清爽":"qīngshuǎng",
+"拥挤":"yōngjǐ",
+"挤满":"jǐmǎn",
+"争吵":"zhēngchǎo",
+"争取":"zhēngqǔ",
+"菊花":"júhuā",
+"秋菊":"qiūjú",
+"频繁":"pínfán",
+"频道":"píndào",
+"勾画":"gōuhuà",
+"勾结":"gōujié",
+"挖土":"wātǔ",
+"挖掘":"wājué",
+"油画":"yóuhuà",
+"加油":"jiāyóu",
+"房屋":"fángwū",
+"屋顶":"wūdǐng",
+"黑板":"hēibǎn",
+"木板":"mùbǎn",
+"准备":"zhǔnbèi",
+"准确":"zhǔnquè",
+"备用":"bèiyòng",
+"等待":"děngdài",
+"等号":"děnghào",
+"暴雨":"bàoyǔ",
+"暴力":"bàolì",
+"吟哦":"yíné",
+"哦呀":"òya",
+"钻研":"zuānyán",
+"钻孔":"zuānkǒng",
+"爬山":"páshān",
+"爬行":"páxíng",
+"漂亮":"piàoliang",
+"漂浮":"piāofú",
+"晾晒":"liàngshài",
+"晒干":"shàigān",
+"永恒":"yǒnghéng",
+"恒心":"héngxīn",
+"神圣":"shénshèng",
+"圣洁":"shèngjié",
+"萌芽":"méngyá",
+"萌发":"méngfā",
+"妥当":"tuǒdàng",
+"妥善":"tuǒshàn",
+"轴心":"zhóuxīn",
+"轴线":"zhóuxiàn",
+"阁楼":"gélóu",
+"楼阁":"lóugé",
+"培养":"péiyǎng",
+"培训":"péixùn",
+"厘米":"límǐ",
+"毫厘":"háolí",
+"葫芦":"húlu",
+"芦苇":"lúwěi",
+"芦荟":"lúhuì",
+"错误":"cuòwù",
+"错过":"cuòguò",
+"普通":"pǔtōng",
+"普及":"pǔjí",
+"宫殿":"gōngdiàn",
+"故宫":"gùgōng",
+"肯定":"kěndìng",
+"不肯":"bùkěn",
+"冒险":"màoxiǎn",
+"冒号":"màohào",
+"方式":"fāngshì",
+"公式":"gōngshì",
+"可怜":"kělián",
+"怜惜":"liánxī",
+"旅行":"lǚxíng",
+"旅游":"lǚyóu",
+"另外":"lìngwài",
+"另行":"lìngxíng",
+"晴天":"qíngtiān",
+"及时":"jíshí",
+"及格":"jígé",
+"试卷":"shìjuàn",
+"卷子":"juànzi",
+"救命":"jiùmìng",
+"抢救":"qiǎngjiù",
+"生命":"shēngmìng",
+"命运":"mìngyùn",
+"尾巴":"wěiba",
+"结尾":"jiéwěi",
+"牙齿":"yáchǐ",
+"齿轮":"chǐlún",
+"胃口":"wèikǒu",
+"胃病":"wèibìng",
+"管理":"guǎnlǐ",
+"水管":"shuǐguǎn",
+"刚才":"gāngcái",
+"刚刚":"gānggāng",
+"咬牙":"yǎoyá",
+"咬住":"yǎozhù",
+"申请":"shēnqǐng",
+"申诉":"shēnsù",
+"介绍":"jièshào",
+"介意":"jièyì",
+"绍兴":"shàoxīng",
+"宗教":"zōngjiào",
+"宗旨":"zōngzhǐ",
+"旨意":"zhǐyì",
+"占领":"zhànlǐng",
+"占据":"zhànjù",
+"乏味":"fáwèi",
+"缺乏":"quēfá",
+"搭档":"dādàng",
+"搭建":"dājiàn",
+"亲自":"qīnzì",
+"母亲":"mǔqīn",
+"祖国":"zǔguó",
+"祖父":"zǔfù",
+"披风":"pīfēng",
+"披肩":"pījiān",
+"摇晃":"yáohuàng",
+"摇头":"yáotóu",
+"停止":"tíngzhǐ",
+"停车":"tíngchē",
+"羽毛":"yǔmáo",
+"羽翼":"yǔyì",
+"翠绿":"cuìlǜ",
+"翠鸟":"cuìniǎo",
+"蓝色":"lánsè",
+"蓝天":"lántiān",
+"安静":"ānjìng",
+"静止":"jìngzhǐ",
+"悄悄":"qiāoqiāo",
+"悄然":"qiǎorán",
+"吞下":"tūnxià",
+"吞吐":"tūntǔ",
+"捕捉":"bǔzhuō",
+"捕猎":"bǔliè",
+"蒲公英":"púgōngyīng",
+"蒲扇":"púshàn",
+"英雄":"yīngxióng",
+"英语":"yīngyǔ",
+"盛开":"shèngkāi",
+"盛大":"shèngdà",
+"玩耍":"wánshuǎ",
+"耍赖":"shuǎlài",
+"使用":"shǐyòng",
+"使者":"shǐzhě",
+"使劲":"shǐjìn",
+"劲头":"jìntóu",
+"脸蛋":"liǎndàn",
+"洗脸":"xǐliǎn",
+"欠款":"qiànkuǎn",
+"哈欠":"hāqian",
+"朝阳":"cháoyáng",
+"朝代":"cháodài",
+"钓鱼":"diàoyú",
+"钓竿":"diàogān",
+"观察":"guānchá",
+"察觉":"chájué",
+"合拢":"hélǒng",
+"收拢":"shōulǒng",
+"喜欢":"xǐhuan",
+"喜爱":"xǐài",
+"风景":"fēngjǐng",
+"景色":"jǐngsè",
+"优美":"yōuměi",
+"优秀":"yōuxiù",
+"清淡":"qīngdàn",
+"淡水":"dànshuǐ",
+"浅水":"qiǎnshuǐ",
+"深浅":"shēnqiǎn",
+"海底":"hǎidǐ",
+"到底":"dàodǐ",
+"岩石":"yánshí",
+"岩洞":"yándòng",
+"小鹿":"xiǎolù",
+"鹿角":"lùjiǎo",
+"划船":"huáchuán",
+"计划":"jìhuà",
+"布置":"bùzhì",
+"公布":"gōngbù",
+"茂密":"màomì",
+"茂盛":"màoshèng",
+"秘密":"mìmì",
+"紧密":"jǐnmì",
+"深厚":"shēnhòu",
+"厚道":"hòudào",
+"材料":"cáiliào",
+"木料":"mùliào",
+"海滨":"hǎibīn",
+"湖滨":"húbīn",
+"棕色":"zōngsè",
+"棕榈":"zōnglǘ",
+"帆船":"fānchuán",
+"风帆":"fēngfān",
+"灰色":"huīsè",
+"灰尘":"huīchén",
+"跟随":"gēnsuí",
+"脚跟":"jiǎogēn",
+"渔民":"yúmín",
+"渔夫":"yúfū",
+"贝壳":"bèiké",
+"外壳":"wàiké",
+"院子":"yuànzi",
+"医院":"yīyuàn",
+"亚军":"yàjūn",
+"亚洲":"yàzhōu",
+"透明":"tòumíng",
+"透彻":"tòuchè",
+"除法":"chúfǎ",
+"消除":"xiāochú",
+"踩踏":"cǎità",
+"踩住":"cǎizhù",
+"抽水":"chōushuǐ",
+"抽空":"chōukōng",
+"封闭":"fēngbì",
+"信封":"xìnfēng",
+"严格":"yángé",
+"严肃":"yánsù",
+"阻挡":"zǔdǎng",
+"挡住":"dǎngzhù",
+"花坛":"huātán",
+"天坛":"tiāntán",
+"明显":"míngxiǎn",
+"显示":"xiǎnshì",
+"苍茫":"cāngmáng",
+"苍白":"cāngbái",
+"药材":"yàocái",
+"药品":"yàopǐn",
+"木材":"mùcái",
+"柔软":"róuruǎn",
+"软弱":"ruǎnruò",
+"刮风":"guāfēng",
+"刮刀":"guādāo",
+"捉住":"zhuōzhù",
+"返回":"fǎnhuí",
+"返程":"fǎnchéng",
+"希望":"xīwàng",
+"盼望":"pànwàng",
+"断开":"duànkāi",
+"中断":"zhōngduàn",
+"清楚":"qīngchǔ",
+"楚国":"chǔguó",
+"至今":"zhìjīn",
+"至于":"zhìyú",
+"岸边":"ànbiān",
+"海岸":"hǎiàn",
+"孤独":"gūdú",
+"孤单":"gūdān",
+"饮料":"yǐnliào",
+"饮水":"yǐnshuǐ",
+"亦然":"yìrán",
+"亦步亦趋":"yìbùyìqū",
+"欲望":"yùwàng",
+"食欲":"shíyù",
+"涂抹":"túmǒ",
+"抹布":"mābù",
+"便宜":"piányi",
+"适宜":"shìyí",
+"奇妙":"qímiào",
+"美妙":"měimiào",
+"演奏":"yǎnzòu",
+"伴奏":"bànzòu",
+"钢琴":"gāngqín",
+"琴声":"qínshēng",
+"温柔":"wēnróu",
+"感情":"gǎnqíng",
+"感动":"gǎndòng",
+"充分":"chōngfèn",
+"充实":"chōngshí",
+"威风":"wēifēng",
+"威力":"wēilì",
+"机器":"jīqì",
+"乐器":"yuèqì",
+"汇集":"huìjí",
+"汇报":"huìbào",
+"鸣叫":"míngjiào",
+"鸟鸣":"niǎomíng",
+"池塘":"chítáng",
+"鱼塘":"yútáng",
+"鱼虾":"yúxiā",
+"龙虾":"lóngxiā",
+"昆虫":"kūnchóng",
+"昆仑":"kūnlún",
+"不仅":"bùjǐn",
+"仅仅":"jǐnjǐn",
+"顺序":"shùnxù",
+"秩序":"zhìxù",
+"光荣":"guāngróng",
+"荣誉":"róngyù",
+"枯萎":"kūwěi",
+"枯燥":"kūzào",
+"姿势":"zīshì",
+"姿态":"zītài",
+"态度":"tàidù",
+"刺猬":"cìwei",
+"讽刺":"fěngcì",
+"梨子":"lízǐ",
+"梨树":"líshù",
+"部分":"bùfen",
+"部位":"bùwèi",
+"奥秘":"àomì",
+"深奥":"shēnào",
+"螺丝":"luósī",
+"螺蛳":"luósī",
+"螃蟹":"pángxiè",
+"鲤鱼":"lǐyú",
+"鲫鱼":"jìyú",
+"鲨鱼":"shāyú",
+"公司":"gōngsī",
+"司机":"sījī",
+"登山":"dēngshān",
+"登记":"dēngjì",
+"跌倒":"diēdǎo",
+"跌跤":"diējiāo",
+"皆是":"jiēshì",
+"尽皆":"jìnjiē",
+"放弃":"fàngqì",
+"抛弃":"pāoqì",
+"坚持":"jiānchí",
+"保持":"bǎochí",
+"打击":"dǎjī",
+"攻击":"gōngjī",
+"想念":"xiǎngniàn",
+"念头":"niàntou",
+"差别":"chābié",
+"差距":"chājù",
+"考试":"kǎoshì",
+"考虑":"kǎolǜ",
+"尝试":"chángshì",
+"平均":"píngjūn",
+"均匀":"jūnyún",
+"退休":"tuìxiū",
+"后退":"hòutuì",
+"努力":"nǔlì",
+"努嘴":"nǔzuǐ",
+"简单":"jiǎndān",
+"单位":"dānwèi",
+"留下":"liúxià",
+"保留":"bǎoliú",
+"温度":"wēndù",
+"度过":"dùguò",
+"奋斗":"fèndòu",
+"兴奋":"xīngfèn",
+"木棒":"mùbàng",
+"棒球":"bàngqiú",
+"伤心":"shāngxīn",
+"伤害":"shānghài",
+"陆地":"lùdì",
+"陆军":"lùjūn",
+"血液":"xuèyè",
+"血型":"xuèxíng",
+"取得":"qǔdé",
+"盘子":"pánzi",
+"光盘":"guāngpán",
+"匆忙":"cōngmáng",
+"匆匆":"cōngcōng",
+"医生":"yīshēng",
+"迅速":"xùnsù",
+"迅疾":"xùnjí",
+"速度":"sùdù",
+"快速":"kuàisù",
+"争夺":"zhēngduó",
+"夺取":"duóqǔ",
+"秒针":"miǎozhēn",
+"分秒":"fēnmiǎo",
+"睁开":"zhēngkāi",
+"睁眼":"zhēngyǎn",
+"眨眼":"zhǎyǎn",
+"眨巴":"zhǎbā",
+"瞪眼":"dèngyǎn",
+"瞪视":"dèngshì",
+"瞅见":"chǒujiàn",
+"瞅":"chǒu",
+"愤怒":"fènnù",
+"怒火":"nùhuǒ",
+"眼眶":"yǎnkuàng",
+"发呆":"fādāi",
+"呆板":"dāibǎn",
+"目睹":"mùdǔ",
+"有目共睹":"yǒumùgòngdǔ",
+};
+
 // 取生字的组词：优先级 题目自带(过滤"X的X"占位符) → 课本词语匹配 → 兜底词库
 function getHanziExamples(item){
   const w = item.w;
@@ -1033,6 +1511,49 @@ function findExampleWords(w){
   });
   return examples.slice(0,2);
 }
+// 建立所有年级生字的 字→拼音 映射
+function buildHanziPyMap(){
+  HANZI_PY_MAP = {};
+  for(const grade in CHINESE){
+    const data = CHINESE[grade];
+    if(!data || !data.units) continue;
+    data.units.forEach(unit=>{
+      (unit.lessons||[]).forEach(lesson=>{
+        (lesson.hanzi||[]).forEach(h=>{ if(h.w && h.py) HANZI_PY_MAP[h.w] = h.py; });
+      });
+      (unit.poems||[]).forEach(poem=>{
+        (poem.hanzi||[]).forEach(h=>{ if(h.w && h.py) HANZI_PY_MAP[h.w] = h.py; });
+      });
+    });
+  }
+}
+// 取一个词语的拼音:优先用课本里的 py,否则拼接每个字的拼音
+function wordPinyin(word){
+  if(!word) return '';
+  // 1. 课本词语自带拼音
+  for(const grade in CHINESE){
+    const data = CHINESE[grade];
+    if(!data || !data.units) continue;
+    for(const unit of data.units||[]){
+      for(const lesson of unit.lessons||[]){
+        const found = (lesson.words||[]).find(w=>w.w===word);
+        if(found && found.py) return found.py;
+      }
+      for(const poem of unit.poems||[]){
+        const found = (poem.words||[]).find(w=>w.w===word);
+        if(found && found.py) return found.py;
+      }
+    }
+  }
+  // 2. 兜底词库拼音
+  if(FALLBACK_PY[word]) return FALLBACK_PY[word];
+  // 3. 拼接每个字的拼音
+  let py = '';
+  for(const ch of word){
+    py += HANZI_PY_MAP[ch] || '';
+  }
+  return py || word;
+}
 function dictationSpeakCurrent(){
   const item = dictationQueue[dictationIndex];
   if(!item) return;
@@ -1043,7 +1564,7 @@ function dictationSpeakCurrent(){
     const ex = getHanziExamples(item);
     const e1 = ex[0] || item.w;
     const e2 = ex[1] || ex[0] || item.w;
-    text = `${item.w}，${e1}的${item.w}，${item.w}，${e2}的${item.w}`;
+    text = `${item.w}，${e1}的${item.w}，${e2}的${item.w}`;
   } else if(item.type==='word'){
     text = item.w;
   } else {
@@ -1059,6 +1580,7 @@ function dictationSpeakCurrent(){
   }, dictationConfig.rate || 0.75);
 }
 function speakQueue(text, times, cb, rate=0.75){
+  if(dictationAbort){ dictationAbort=false; return; }
   if(times<=0){ cb(); return; }
   speak(text, 'zh-CN', rate);
   let check = setInterval(()=>{
@@ -1653,6 +2175,7 @@ function renderCheckin(){
 function init(){
   updateTopDate();
   initGradeSelect();
+  buildHanziPyMap();
   renderChinesePage();
   renderEnglish();
   renderWrong();
