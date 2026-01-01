@@ -428,12 +428,13 @@ select,input[type=text],input[type=number]{width:100%;padding:12px;border:2px so
       </div>
       <div class="hint" id="parkMsg">每日签到领星星，转盘消耗星星抽奖励！</div>
       <div class="row" style="margin-top:14px;">
-        <button class="btn btn-outline" style="flex:1;" onclick="enterIsland()">🏝️ 进入 3D 小岛换装</button>
+        <button class="btn btn-outline" style="flex:1;" onclick="enterIsland()">🏝️ 进入 2D 小镇换装</button>
       </div>
     </div>
     <div class="card">
       <div class="card-title">🧮 口算抢分</div>
       <div id="parkQuiz" class="park-quiz">
+        <div class="quiz-meta"><span id="parkQuizTag">准备开始</span><span id="parkQuizReward"></span></div>
         <div class="quiz-num" id="parkQuizQ">点击开始</div>
         <input type="number" id="parkQuizA" placeholder="输入答案" style="margin:8px 0;">
         <div class="row">
@@ -441,7 +442,7 @@ select,input[type=text],input[type=number]{width:100%;padding:12px;border:2px so
         </div>
         <div class="feedback" id="parkQuizFb"></div>
       </div>
-      <div class="hint">答对一题 +5⭐，连续答对更开心！</div>
+      <div class="hint">三年级内容：每 5 题出乘法除法(+8⭐)，每 20 题出百位数加减(+10⭐)，其余题(+4⭐)；每日签到 +5⭐</div>
     </div>
   </div>
 </div>
@@ -455,7 +456,7 @@ select,input[type=text],input[type=number]{width:100%;padding:12px;border:2px so
   <div class="nav-item" data-page="playground"><span class="ni">🎡</span>乐园</div>
 </div>
 
-<!-- 3D 小岛 -->
+<!-- 2D 小镇 -->
 <div class="island-overlay" id="islandOverlay" style="display:none;">
   <div class="island-canvas" id="islandCanvas"></div>
   <div class="island-topbar">
@@ -2755,6 +2756,8 @@ function updateAllDoneReward(data){
 // ============ 积分乐园 ============
 let parkPoints = load(LS.points, 0);
 let parkQuizAns = null;
+let parkQuizCount = 0;   // 已出题目数（连续计数，用于每5/每20分档）
+let parkQuizPoints = 4;  // 当前题分值
 function parkAddPoints(n){
   parkPoints += n;
   save(LS.points, parkPoints);
@@ -2772,8 +2775,12 @@ function renderPlayground(){
   const q = document.getElementById('parkQuizQ');
   const fb = document.getElementById('parkQuizFb');
   const a = document.getElementById('parkQuizA');
+  const tag = document.getElementById('parkQuizTag');
+  const rw = document.getElementById('parkQuizReward');
   const startBtn = document.getElementById('parkQuizBtn');
   if(q) q.textContent = '点击开始';
+  if(tag) tag.textContent = '准备开始';
+  if(rw) rw.textContent = '';
   if(fb){ fb.textContent=''; fb.className='feedback'; }
   if(a) a.value = '';
   if(startBtn){ startBtn.textContent='开始'; startBtn.onclick=parkQuizStart; }
@@ -2803,13 +2810,44 @@ function parkWheel(){
   if(msg) msg.textContent = `🎰 恭喜抽中 +${r}⭐！`;
 }
 function parkQuizStart(){
-  const a = Math.floor(Math.random()*20)+1;
-  const b = Math.floor(Math.random()*20)+1;
-  const op = Math.random()<0.5 ? '+' : '-';
-  let big = Math.max(a,b), small = Math.min(a,b);
-  parkQuizAns = (op==='+') ? a+b : big-small;
+  parkQuizCount++;
+  // 分档：每20题→百位数加减(+10)，每5题→乘除法(+8)，其余→普通加减(+4)，内容均三年级
+  let type, pts;
+  if(parkQuizCount % 20 === 0){ type='big'; pts=10; }
+  else if(parkQuizCount % 5 === 0){ type='md'; pts=8; }
+  else { type='base'; pts=4; }
+  parkQuizPoints = pts;
+
+  let qText, ans;
+  if(type==='big'){
+    // 百位数加减法（三位数）
+    const a = Math.floor(Math.random()*900)+100;
+    const b = Math.floor(Math.random()*900)+100;
+    if(Math.random()<0.5){ ans=a+b; qText=`${a} + ${b} = ?`; }
+    else { const big=Math.max(a,b), small=Math.min(a,b); ans=big-small; qText=`${big} - ${small} = ?`; }
+  } else if(type==='md'){
+    // 表内乘法/除法（三年级）
+    if(Math.random()<0.5){
+      const a=Math.floor(Math.random()*9)+1, b=Math.floor(Math.random()*9)+1;
+      ans=a*b; qText=`${a} × ${b} = ?`;
+    } else {
+      const b=Math.floor(Math.random()*9)+1, k=Math.floor(Math.random()*9)+1;
+      const a=b*k; ans=k; qText=`${a} ÷ ${b} = ?`;
+    }
+  } else {
+    // 普通加减法（两位数以内，三年级口算）
+    const a=Math.floor(Math.random()*90)+10, b=Math.floor(Math.random()*90)+10;
+    if(Math.random()<0.5){ ans=a+b; qText=`${a} + ${b} = ?`; }
+    else { const big=Math.max(a,b), small=Math.min(a,b); ans=big-small; qText=`${big} - ${small} = ?`; }
+  }
+
+  parkQuizAns = ans;
   const q = document.getElementById('parkQuizQ');
-  if(q) q.textContent = (op==='+') ? `${a} + ${b} = ?` : `${big} - ${small} = ?`;
+  if(q) q.textContent = qText;
+  const tag = document.getElementById('parkQuizTag');
+  if(tag) tag.textContent = `第 ${parkQuizCount} 题`;
+  const rw = document.getElementById('parkQuizReward');
+  if(rw) rw.textContent = `+${pts}⭐`;
   const fb = document.getElementById('parkQuizFb');
   if(fb){ fb.textContent=''; fb.className='feedback'; }
   const aInput = document.getElementById('parkQuizA');
@@ -2822,9 +2860,10 @@ function parkQuizSubmit(){
   const aInput = document.getElementById('parkQuizA');
   const val = aInput ? Number(aInput.value) : NaN;
   const fb = document.getElementById('parkQuizFb');
+  const pts = parkQuizPoints;
   if(val === parkQuizAns){
-    parkAddPoints(5);
-    if(fb){ fb.textContent='✓ 答对啦！+5⭐'; fb.className='feedback ok'; }
+    parkAddPoints(pts);
+    if(fb){ fb.textContent=`✓ 答对啦！+${pts}⭐`; fb.className='feedback ok'; }
   } else {
     if(fb){ fb.textContent=`✗ 正确答案 ${parkQuizAns}`; fb.className='feedback no'; }
   }
@@ -2833,7 +2872,7 @@ function parkQuizSubmit(){
   if(startBtn){ startBtn.textContent='再来一题'; startBtn.onclick=parkQuizStart; }
 }
 
-// ============ 3D 小岛换装 ============
+// ============ 2D 小镇换装 ============
 const OUTFITS = [
   {id:'default', name:'日常校服', price:0,  top:'#ffffff', pants:'#222222', hair:'short', shoe:'#333333', skin:'#ffd9b3'},
   {id:'sport',   name:'活力运动', price:50, top:'#e74c3c', pants:'#2c3e50', hair:'short', shoe:'#ffffff', skin:'#ffd9b3'},
