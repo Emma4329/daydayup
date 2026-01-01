@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#FF8A3D">
-<!-- build: daydayup-deploy 2026-08-29T21:48:00+08:00 -->
+<!-- build: daydayup-deploy 2026-08-29T22:06:00+08:00 -->
 <title>天天向上 · 小学生学习平台</title>
 <style>
 :root {
@@ -342,6 +342,10 @@ select,input[type=text],input[type=number]{width:100%;padding:12px;border:2px so
         <button class="btn btn-blue" style="flex:1;" onclick="printSelectedWrong()">🖨️ 去打印</button>
         <button class="btn btn-red" style="flex:1;" onclick="deleteSelectedWrong()">🗑️ 删除</button>
       </div>
+      <div class="row" id="wrongMathBar" style="margin-bottom:12px;display:none;">
+        <button class="btn btn-purple" style="flex:1;" onclick="document.getElementById('wrongPhotoInput').click()">📷 拍照/上传错题</button>
+      </div>
+      <input type="file" id="wrongPhotoInput" accept="image/*" capture="environment" style="display:none;" onchange="onWrongPhotoSelected(event)">
       <div id="wrongList"></div>
       <div class="empty-tip" id="wrongEmpty">还没有错题，真棒！</div>
     </div>
@@ -1720,6 +1724,7 @@ function dictationBack(){
   switchPage('dictation-select');
 }
 function wrongKey(w){
+  if(w.type==='math-photo') return 'photo|'+w.ts; // 每张照片唯一，不合并
   if(w.type==='math') return (w.type||'')+'|'+w.text+'|'+(w.ans||'');
   return (w.type||'')+'|'+(w.w||'')+'|'+(w.py||'');
 }
@@ -2119,6 +2124,45 @@ document.getElementById('quizAns').addEventListener('keydown',e=>{ if(e.key==='E
 function addWrong(q){
   upsertWrong({type:'math', text:q.text, ans:q.ans, grade: currentGrade});
 }
+function compressImage(file, cb){
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      const maxW = 800;
+      let {width, height} = img;
+      if(width > maxW){ height = Math.round(height * maxW / width); width = maxW; }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      try { cb(canvas.toDataURL('image/jpeg', 0.7)); }
+      catch(err){ cb(e.target.result); }
+    };
+    img.onerror = () => cb(e.target.result);
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+function onWrongPhotoSelected(ev){
+  const file = ev.target.files && ev.target.files[0];
+  ev.target.value = '';
+  if(!file) return;
+  compressImage(file, dataURL => {
+    const arr = load(LS.wrong, []);
+    arr.unshift({type:'math-photo', photo:dataURL, grade:wrongGrade, ts:Date.now(), count:1});
+    if(arr.length>200) arr.length=200;
+    save(LS.wrong, arr);
+    renderWrong();
+  });
+}
+function delWrongItem(i){
+  if(!confirm('确定删除这条错题？')) return;
+  const all = load(LS.wrong, []);
+  if(i<0 || i>=all.length) return;
+  all.splice(i,1);
+  save(LS.wrong, all);
+  renderWrong();
+}
 function isChineseWrong(w){
   if(w.type && w.type.startsWith('chinese')) return true;
   // 兼容旧数据：没有 type 但 text 包含听写/古诗的也当作语文错题
@@ -2141,7 +2185,7 @@ function renderWrong(){
   all.forEach(w=>{ if(!w.count) w.count = 1; });
   const filters = {
     chinese: w => isChineseWrong(w),
-    math: w => w.type === 'math',
+    math: w => w.type === 'math' || w.type === 'math-photo',
     english: w => w.type === 'english'
   };
   // 合并同一内容的错题，累计加入次数，保留最新时间
@@ -2189,6 +2233,8 @@ function renderWrong(){
   document.getElementById('wrongEmpty').style.display='none';
   const hasChinese = wrongTab==='chinese';
   if(actions) actions.style.display = hasChinese ? 'flex' : 'none';
+  const mathBar = document.getElementById('wrongMathBar');
+  if(mathBar) mathBar.style.display = wrongTab==='math' ? 'flex' : 'none';
   if(hasChinese){
     box.innerHTML = `<div class="word-grid">${arr.map(({w,i})=>`
       <div class="word-tag" style="position:relative;padding-top:22px;min-width:72px;text-align:center;cursor:pointer;" onclick="event.stopPropagation();">
@@ -2201,10 +2247,13 @@ function renderWrong(){
   } else {
     box.innerHTML=arr.map(({w,i})=>`
       <div class="list-item" style="align-items:flex-start;">
-        <div>
-          <div class="name">${wrongDisplayText(w)}${w.count > 1 ? ` <span style="display:inline-block;background:var(--red);color:#fff;border-radius:8px;padding:1px 6px;font-size:11px;font-weight:800;">${w.count}</span>` : ''}</div>
-          <div class="meta">${wrongDisplayAns(w)}</div>
+        <div style="flex:1;min-width:0;">
+          ${w.photo
+            ? `<img src="${w.photo}" style="max-width:100%;max-height:240px;border-radius:10px;border:1px solid var(--border);display:block;">${w.count>1?`<div style="margin-top:4px;"><span style="display:inline-block;background:var(--red);color:#fff;border-radius:8px;padding:1px 6px;font-size:11px;font-weight:800;">错 ${w.count} 次</span></div>`:''}`
+            : `<div class="name">${wrongDisplayText(w)}${w.count > 1 ? ` <span style="display:inline-block;background:var(--red);color:#fff;border-radius:8px;padding:1px 6px;font-size:11px;font-weight:800;">${w.count}</span>` : ''}</div><div class="meta">${wrongDisplayAns(w)}</div>`
+          }
         </div>
+        <button class="del" style="margin-left:8px;flex-shrink:0;" onclick="delWrongItem(${i})">删除</button>
       </div>
     `).join('');
   }
