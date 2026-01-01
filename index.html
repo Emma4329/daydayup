@@ -106,6 +106,8 @@ select,input[type=text],input[type=number]{width:100%;padding:12px;border:2px so
 .dictation-py{font-size:64px;font-weight:800;color:var(--text);margin:10px 0;}
 .dictation-hint{font-size:14px;color:var(--text-light);margin-top:10px;}
 .dictation-controls{display:flex;justify-content:space-around;align-items:center;margin-top:20px;}
+.dict-word{display:flex;align-items:center;gap:8px;user-select:none;}
+.dict-word input{pointer-events:none;}
 .control-btn{background:none;border:none;font-size:13px;font-weight:700;color:var(--text-light);display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;}
 .control-btn .icon{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;background:var(--bg);border:1px solid var(--border);}
 .control-btn .icon.big{width:72px;height:72px;font-size:32px;background:var(--primary);color:#fff;border:none;}
@@ -188,6 +190,8 @@ select,input[type=text],input[type=number]{width:100%;padding:12px;border:2px so
       </div>
       <div id="cnUnitList"></div>
       <div class="hint">点击课文/古诗可展开生字词语；点击字词可朗读。</div>
+      <div class="card-title" style="margin-top:18px;">📝 听写历史记录</div>
+      <div id="dictationHistory"></div>
     </div>
   </div>
 
@@ -321,7 +325,8 @@ const LS = {
   wrong: 'ddup_wrong_v1',
   checkin: 'ddup_checkin_v1',
   chinese: 'ddup_chinese_v1',
-  dictationConfig: 'ddup_dictation_cfg_v1'
+  dictationConfig: 'ddup_dictation_cfg_v1',
+  dictationHistory: 'ddup_dictation_history_v1'
 };
 function load(k, def){ try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch(e){ return def; } }
 function save(k, v){ localStorage.setItem(k, JSON.stringify(v)); }
@@ -333,7 +338,8 @@ let CHINESE = load(LS.chinese, null);
 if(!CHINESE){ CHINESE = JSON.parse(JSON.stringify(DEFAULT_CHINESE)); save(LS.chinese, CHINESE); }
 let currentGrade = '3-1';
 let editMode = false;
-let dictationSelections = { units:[], lessons:[], poems:[] };
+let dictationSelections = { units:[], lessons:[], poems:[], hanzi:[], words:[], poemFull:[] };
+let dictationExpanded = [];
 let dictationTypes = { hanzi:true, words:true, poem:false };
 let dictationQueue = [];
 let dictationIndex = 0;
@@ -398,6 +404,7 @@ function renderChinesePage(){
       </div>
     </div>
   `).join('') + (editMode?'<div style="margin-top:10px"><button class="btn btn-block btn-green" onclick="addUnit()">+ 添加单元</button></div>':'');
+  renderDictationHistory();
 }
 function toggleUnit(ui){
   const el = document.getElementById('unit-body-'+ui);
@@ -536,7 +543,8 @@ function speak(text, lang){
 
 // ============ 听写选择 ============
 function openDictationSelect(){
-  dictationSelections = { units:[], lessons:[], poems:[] };
+  dictationSelections = { units:[], lessons:[], poems:[], hanzi:[], words:[], poemFull:[] };
+  dictationExpanded = [];
   switchPage('dictation-select');
 }
 function backToChinese(){ switchPage('chinese'); }
@@ -551,50 +559,130 @@ function renderDictationTree(){
         <input type="checkbox" ${unitChecked?'checked':''} onclick="event.stopPropagation();toggleDictUnit(${ui})">
         <span class="c-name">${unit.name}</span>
         <span class="c-meta">全选</span>
-      </div>`;
+      </div>
+      <div class="unit-body open" style="background:transparent;border:none;padding:0 0 0 12px;">`;
     unit.lessons.forEach((lesson, li)=>{
       const key = `${ui}-${li}`;
-      const checked = dictationSelections.lessons.includes(key);
-      html += `<div class="check-row" style="padding-left:34px;" onclick="toggleDictLesson('${key}')">
-        <input type="checkbox" ${checked?'checked':''} onclick="event.stopPropagation();toggleDictLesson('${key}')">
-        <span class="c-name">课文：${lesson.name}</span>
+      const lessonChecked = dictationSelections.lessons.includes(key);
+      const isOpen = dictationExpanded.includes(key);
+      html += `<div class="lesson-row" style="margin-bottom:8px;">
+        <div class="lesson-title" onclick="toggleDictExpand('${key}')">
+          <div style="display:flex;align-items:center;gap:8px;flex:1;">
+            <input type="checkbox" ${lessonChecked?'checked':''} onclick="event.stopPropagation();toggleDictLesson('${key}')">
+            <span class="l-name">课文：${lesson.name}</span>
+          </div>
+          <span style="font-size:12px;color:var(--text-light)">${isOpen?'收起 ▲':'展开 ▼'}</span>
+        </div>
+        <div class="lesson-body ${isOpen?'open':''}" id="dict-body-${key}">
+          ${dictationTypes.hanzi && lesson.hanzi.length ? renderDictItems('生字', lesson.hanzi, 'hanzi', key) : ''}
+          ${dictationTypes.words && lesson.words.length ? renderDictItems('词语', lesson.words, 'word', key) : ''}
+        </div>
       </div>`;
     });
     unit.poems.forEach((poem, pi)=>{
       const key = `${ui}-${pi}`;
-      const checked = dictationSelections.poems.includes(key);
-      html += `<div class="check-row" style="padding-left:34px;" onclick="toggleDictPoem('${key}')">
-        <input type="checkbox" ${checked?'checked':''} onclick="event.stopPropagation();toggleDictPoem('${key}')">
-        <span class="c-name">古诗：${poem.name}</span>
+      const poemChecked = dictationSelections.poems.includes(key);
+      const isOpen = dictationExpanded.includes(key);
+      const fullKey = key;
+      html += `<div class="lesson-row" style="margin-bottom:8px;">
+        <div class="lesson-title" onclick="toggleDictExpand('${key}')">
+          <div style="display:flex;align-items:center;gap:8px;flex:1;">
+            <input type="checkbox" ${poemChecked?'checked':''} onclick="event.stopPropagation();toggleDictPoem('${key}')">
+            <span class="l-name">古诗：${poem.name}</span>
+          </div>
+          <span style="font-size:12px;color:var(--text-light)">${isOpen?'收起 ▲':'展开 ▼'}</span>
+        </div>
+        <div class="lesson-body ${isOpen?'open':''}" id="dict-body-${key}">
+          ${dictationTypes.hanzi && poem.hanzi.length ? renderDictItems('生字', poem.hanzi, 'hanzi', key) : ''}
+          ${dictationTypes.words && poem.words.length ? renderDictItems('词语', poem.words, 'word', key) : ''}
+          ${dictationTypes.poem && poem.full ? `
+            <div class="section-title">古诗全文</div>
+            <div class="check-row dict-item-row" onclick="toggleDictPoemFull('${fullKey}')">
+              <input type="checkbox" ${dictationSelections.poemFull.includes(fullKey)?'checked':''} onclick="event.stopPropagation();toggleDictPoemFull('${fullKey}')">
+              <span class="c-name">${poem.name} 全文</span>
+            </div>` : ''}
+        </div>
       </div>`;
     });
-    return html + '</div>';
+    return html + '</div></div>';
   }).join('');
   updateDictationCount();
 }
+function renderDictItems(title, list, field, parentKey){
+  return `
+    <div class="section-title">${title}</div>
+    <div class="word-grid">
+      ${list.map((it, i)=>{
+        const key = `${parentKey}-${i}`;
+        const checked = dictationSelections[field==='hanzi'?'hanzi':'words'].includes(key);
+        return `<div class="word-tag dict-word ${checked?'reading':''}" onclick="toggleDictWord('${field}','${key}')">
+          <input type="checkbox" ${checked?'checked':''} onclick="event.stopPropagation();toggleDictWord('${field}','${key}')" style="width:16px;height:16px;cursor:pointer;">
+          <div>
+            <div style="font-size:16px;font-weight:800;">${it.w}</div>
+            <div class="py">${it.py}</div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+  `;
+}
 function toggleDictUnit(ui){
   const pos = dictationSelections.units.indexOf(ui);
+  const unit = CHINESE[currentGrade].units[ui];
   if(pos>=0){
     dictationSelections.units.splice(pos,1);
-    const unit = CHINESE[currentGrade].units[ui];
-    unit.lessons.forEach((_,li)=>{ const k=`${ui}-${li}`; const i=dictationSelections.lessons.indexOf(k); if(i>=0) dictationSelections.lessons.splice(i,1); });
-    unit.poems.forEach((_,pi)=>{ const k=`${ui}-${pi}`; const i=dictationSelections.poems.indexOf(k); if(i>=0) dictationSelections.poems.splice(i,1); });
+    unit.lessons.forEach((_,li)=>{ const k=`${ui}-${li}`; removeIfExists(dictationSelections.lessons,k); });
+    unit.poems.forEach((_,pi)=>{ const k=`${ui}-${pi}`; removeIfExists(dictationSelections.poems,k); });
+    removeChildrenKeys(ui, 'hanzi'); removeChildrenKeys(ui, 'words'); removeChildrenKeys(ui, 'poemFull');
   } else {
     dictationSelections.units.push(ui);
-    const unit = CHINESE[currentGrade].units[ui];
     unit.lessons.forEach((_,li)=>{ const k=`${ui}-${li}`; if(!dictationSelections.lessons.includes(k)) dictationSelections.lessons.push(k); });
     unit.poems.forEach((_,pi)=>{ const k=`${ui}-${pi}`; if(!dictationSelections.poems.includes(k)) dictationSelections.poems.push(k); });
   }
   renderDictationTree();
 }
+function removeIfExists(arr, v){ const i=arr.indexOf(v); if(i>=0) arr.splice(i,1); }
+function removeChildrenKeys(ui, field){
+  const prefix = `${ui}-`;
+  dictationSelections[field] = dictationSelections[field].filter(k=>!k.startsWith(prefix));
+}
 function toggleDictLesson(key){
   const pos = dictationSelections.lessons.indexOf(key);
-  if(pos>=0) dictationSelections.lessons.splice(pos,1); else dictationSelections.lessons.push(key);
+  if(pos>=0){
+    dictationSelections.lessons.splice(pos,1);
+    removeChildrenKeysOf(key, 'hanzi'); removeChildrenKeysOf(key, 'words');
+  } else {
+    dictationSelections.lessons.push(key);
+  }
   renderDictationTree();
 }
 function toggleDictPoem(key){
   const pos = dictationSelections.poems.indexOf(key);
-  if(pos>=0) dictationSelections.poems.splice(pos,1); else dictationSelections.poems.push(key);
+  if(pos>=0){
+    dictationSelections.poems.splice(pos,1);
+    removeChildrenKeysOf(key, 'hanzi'); removeChildrenKeysOf(key, 'words'); removeIfExists(dictationSelections.poemFull, key);
+  } else {
+    dictationSelections.poems.push(key);
+  }
+  renderDictationTree();
+}
+function removeChildrenKeysOf(parentKey, field){
+  dictationSelections[field] = dictationSelections[field].filter(k=>!k.startsWith(parentKey+'-'));
+}
+function toggleDictExpand(key){
+  const i = dictationExpanded.indexOf(key);
+  if(i>=0) dictationExpanded.splice(i,1); else dictationExpanded.push(key);
+  renderDictationTree();
+}
+function toggleDictWord(field, key){
+  const arr = dictationSelections[field==='hanzi'?'hanzi':'words'];
+  const i = arr.indexOf(key);
+  if(i>=0) arr.splice(i,1); else arr.push(key);
+  renderDictationTree();
+}
+function toggleDictPoemFull(key){
+  const i = dictationSelections.poemFull.indexOf(key);
+  if(i>=0) dictationSelections.poemFull.splice(i,1); else dictationSelections.poemFull.push(key);
   renderDictationTree();
 }
 function toggleType(type){
@@ -615,26 +703,106 @@ function buildDictationQueue(){
     const unitSelected = dictationSelections.units.includes(ui);
     unit.lessons.forEach((lesson, li)=>{
       const key = `${ui}-${li}`;
-      const selected = unitSelected || dictationSelections.lessons.includes(key);
-      if(!selected) return;
-      if(dictationTypes.hanzi) lesson.hanzi.forEach(h=>dictationQueue.push({type:'hanzi', ...h}));
-      if(dictationTypes.words) lesson.words.forEach(w=>dictationQueue.push({type:'word', ...w}));
+      const lessonSelected = unitSelected || dictationSelections.lessons.includes(key);
+      if(dictationTypes.hanzi) lesson.hanzi.forEach((h,hi)=>{
+        const hKey = `${key}-${hi}`;
+        if(lessonSelected || dictationSelections.hanzi.includes(hKey)) dictationQueue.push({type:'hanzi', ...h});
+      });
+      if(dictationTypes.words) lesson.words.forEach((w,wi)=>{
+        const wKey = `${key}-${wi}`;
+        if(lessonSelected || dictationSelections.words.includes(wKey)) dictationQueue.push({type:'word', ...w});
+      });
     });
     unit.poems.forEach((poem, pi)=>{
       const key = `${ui}-${pi}`;
-      const selected = unitSelected || dictationSelections.poems.includes(key);
-      if(!selected) return;
-      if(dictationTypes.hanzi) poem.hanzi.forEach(h=>dictationQueue.push({type:'hanzi', ...h}));
-      if(dictationTypes.words) poem.words.forEach(w=>dictationQueue.push({type:'word', ...w}));
-      if(dictationTypes.poem && poem.full) dictationQueue.push({type:'poem', w:poem.name, py:'', full:poem.full, author:poem.author});
+      const poemSelected = unitSelected || dictationSelections.poems.includes(key);
+      if(dictationTypes.hanzi) poem.hanzi.forEach((h,hi)=>{
+        const hKey = `${key}-${hi}`;
+        if(poemSelected || dictationSelections.hanzi.includes(hKey)) dictationQueue.push({type:'hanzi', ...h});
+      });
+      if(dictationTypes.words) poem.words.forEach((w,wi)=>{
+        const wKey = `${key}-${wi}`;
+        if(poemSelected || dictationSelections.words.includes(wKey)) dictationQueue.push({type:'word', ...w});
+      });
+      if(dictationTypes.poem && poem.full && (poemSelected || dictationSelections.poemFull.includes(key))){
+        dictationQueue.push({type:'poem', w:poem.name, py:'', full:poem.full, author:poem.author});
+      }
     });
   });
+}
+
+// ============ 听写历史 ============
+function saveDictationHistory(){
+  const data = CHINESE[currentGrade];
+  const items = [];
+  if(dictationSelections.units.length) items.push(...dictationSelections.units.map(ui=>data.units[ui].name));
+  dictationSelections.lessons.forEach(key=>{
+    const [ui, li] = key.split('-').map(Number);
+    items.push(data.units[ui].lessons[li].name);
+  });
+  dictationSelections.poems.forEach(key=>{
+    const [ui, pi] = key.split('-').map(Number);
+    items.push(data.units[ui].poems[pi].name);
+  });
+  const individualLessons = new Set();
+  dictationSelections.hanzi.concat(dictationSelections.words).forEach(key=>{
+    const parts = key.split('-');
+    const [ui, idx] = [Number(parts[0]), Number(parts[1])];
+    const unit = data.units[ui];
+    if(parts.length>=3){
+      const lesson = unit.lessons[idx] || unit.poems[idx];
+      if(lesson) individualLessons.add(lesson.name);
+    }
+  });
+  dictationSelections.poemFull.forEach(key=>{
+    const [ui, pi] = key.split('-').map(Number);
+    items.push(data.units[ui].poems[pi].name);
+  });
+  individualLessons.forEach(n=>{ if(!items.includes(n)) items.push(n); });
+  if(items.length===0) return;
+  const date = new Date();
+  const dateStr = `${date.getFullYear()}年${date.getMonth()+1}月${date.getDate()}日`;
+  const timeStr = `${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}`;
+  const entry = {
+    ts: date.getTime(),
+    date: dateStr,
+    time: timeStr,
+    grade: data.name,
+    items: items,
+    count: dictationQueue.length
+  };
+  const arr = load(LS.dictationHistory, []);
+  arr.unshift(entry);
+  if(arr.length>50) arr.length=50;
+  save(LS.dictationHistory, arr);
+}
+function renderDictationHistory(){
+  const box = document.getElementById('dictationHistory');
+  const arr = load(LS.dictationHistory, []);
+  if(!box) return;
+  if(arr.length===0){ box.innerHTML='<div class="empty-tip">还没有听写记录，快去开始听写吧！</div>'; return; }
+  box.innerHTML = arr.map((h,i)=>`
+    <div class="list-item" style="align-items:flex-start;">
+      <div>
+        <div class="name">${h.date} ${h.time}</div>
+        <div class="meta">${h.grade} · 听写：${h.items.join('、')} · 共 ${h.count} 项</div>
+      </div>
+      <button class="del" onclick="delDictationHistory(${i})">删除</button>
+    </div>
+  `).join('');
+}
+function delDictationHistory(i){
+  const arr = load(LS.dictationHistory, []);
+  arr.splice(i,1);
+  save(LS.dictationHistory, arr);
+  renderDictationHistory();
 }
 
 // ============ 听写模式 ============
 function startDictation(){
   buildDictationQueue();
   if(dictationQueue.length===0){ alert('请先选择听写内容'); return; }
+  saveDictationHistory();
   dictationIndex = 0;
   dictationAuto = false;
   dictationPlaying = false;
